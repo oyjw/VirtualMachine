@@ -1,6 +1,7 @@
 #include "VirtualMachine.h"
 #include "OpCode.h"
 #include "Object.h"
+#include <cassert>
 
 void VirtualMachine::exectue(){
 	char code = byteCode[pos++];
@@ -8,6 +9,7 @@ void VirtualMachine::exectue(){
 	case PUSHLOCAL:{
 		int n = getWord();
 		stack.push_back(stack[base + n]);
+		top++;
 		break;
 	}
 	case PUSHGLOBAL:{			
@@ -41,6 +43,34 @@ void VirtualMachine::exectue(){
 				l.type==STROBJ && r.type==STROBJ){
 			
 		}
+		break;
 	}
+	case PUSHPC:{
+		int n = getWord();
+		Object obj;
+		obj.type = NUMOBJ;
+		obj.value.numval = n;
+		stack.push_back(obj);
+		top++;
+		break;
 	}
+	case PUSHBASE:{
+		Object obj;
+		obj.type=NUMOBJ;
+		obj.value.numval=base;
+		stack.push_back(obj);
+		top++;
+		break;
+	}	
+	case CALLFUNC:{
+		int nparam = getWord();
+		base = top-nparam;
+
+
+		base = stack[base-1].value.numval;
+		pos = stack[base-2].value.numval;
+		stack[base - 2] = stack[top];
+		top = base - 1;
+	}
+	default:assert(0);
 }

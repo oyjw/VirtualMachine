@@ -205,7 +205,10 @@ void Parser::functioncall(){
 	tokenizer.advance();
 	match(LPAREN);
 	Token* token = tokenizer.getToken();
-
+	byteCode.push_back((char)PUSHPC);
+	int pos = (int)byteCode.size();
+	pushWord(0);
+	byteCode.push_back((char)PUSHBASE);
 	while (1){
 		if (token->type==NUM ||token->type==IDEN)
 			basic();
@@ -228,6 +231,8 @@ void Parser::functioncall(){
 			throw SyntaxError(oss.str());
 		}
 	}
+	byteCode.push_back((char)CALLFUNC);
+	setWord(pos, (int)byteCode.size());
 }
 
 void Parser::stmts(){
