@@ -1,0 +1,13 @@
+#ifndef _OPCODE_H_
+#define _OPCODE_H_
+enum op{ PUSHGLOBAL, PUSHLOCAL, PUSHREAL,STOREGLOBAL, STORELOCAL, OP_DIV, OP_ADD, OP_MUL, OP_SUB, OP_AND,OP_OR,OP_NOT,
+	JMP, JMPIFN,RETCODE, ADJUST, BEGINFCALL,ENDFCALL};
+
+class OpCode
+{
+public:
+	OpCode();
+	~OpCode();
+};
+
+#endif
