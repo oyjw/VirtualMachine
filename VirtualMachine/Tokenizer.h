@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <functional>
+#include <fstream>
 enum TokenType{
 	IDEN, NUM, FUNCTION, SEMICOLON, STAR, SLASH, MINUS, PLUS, ENDOF, ASSIGN, EQ, LPAREN, 
-	RPAREN, LBRACKET, RBRACKET, COMMA, RETURN, FOR, IF, WHILE, ELSE, ASSIGN,NOT,AND,OR
+	RPAREN, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, WHILE, ELSE, NOT, AND, OR, PRINT
 };
 
 class Token{
@@ -16,31 +16,27 @@ public:
 	int num;
 	std::string str;
 	TokenType type;
-	Token* dup(){
-		Token* token = new Token(this);
-		return token;
-	}
 };
-
 
 
 class Tokenizer{
 public:
-	Tokenizer();
+	Tokenizer(const std::string& fileName);
 	Token* getToken(int index = 0);
 	void advance(int step = 1);
 	std::string& getlinestr() { return curLine; }
 	int getlinenum() { return line; }
+	const std::string& getFileName() {return fileName; }
 private:
 	void scan();
 
+	std::string fileName;
 	std::vector<Token> tokenVec;
 	int vecPos;
-	std::function<bool(std::string&)> readline;
 	int line;
 	int num;
 	std::string curLine;
-
+	std::ifstream ifs;
 	std::unordered_map<std::string, TokenType> reservedWord;
 };
 

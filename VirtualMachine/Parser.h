@@ -6,8 +6,15 @@
 
 class Parser{
 public:
-	Parser(SymPtr symTab, std::vector<Token*>& funcbody):isGlobal(true) {
-		this->symTab = symTab;
+	Parser(Tokenizer* t,SymPtr tab):isGlobal(true) {
+		symTab=tab;
+		tokenizer=t;
+	}
+	~Parser() {
+		delete tokenizer;
+	}
+	std::vector<char>& getByteCode(){
+		return byteCode;
 	}
 	void term();
 	void term2();
@@ -15,12 +22,12 @@ public:
 	void factor2();
 	void basic();
 	
-	void program();
 	void elem();
 	void stmt();
 	void stmts();
 	void stmtList();
 	void returnStmt();
+	void printStmt();
 	void assignStmt();
 	void ifstmt();
 	void orExpr();
@@ -57,7 +64,7 @@ private:
 		byteCode.push_back(code.c.c4);
 	}
 	std::vector<char> byteCode;
-	Tokenizer tokenizer;
+	Tokenizer *tokenizer;
 	SymPtr symTab;
 	bool isGlobal;
 };

@@ -9,7 +9,13 @@ class VirtualMachine
 {
 public:
 	VirtualMachine(std::vector<char>& b, SymPtr g) :byteCode(b), symTab(g), pos(0), top(0), base(0) {}
-	void exectue();
+	~VirtualMachine() {
+	}
+	void exectue(std::vector<char> &byteCodes);
+	void dump(std::vector<char> &byteCodes, const std::string& fileName);
+	void run() {
+		dump(byteCode, "2.txt");
+	}
 private:
 	int getWord(){
 		CodeWord code;

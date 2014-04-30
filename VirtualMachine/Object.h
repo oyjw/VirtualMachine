@@ -1,20 +1,43 @@
 #ifndef _OBJECT_H_
 #define _OBJECT_H_
+#include <string>
+#include <vector>
+
 enum ObjectType{
 	NUMOBJ, STROBJ, FUNOBJ,MARKOBJ,NILOBJ
+};
+
+struct CollectableObject{
 };
 
 struct Object{
 	ObjectType type;
 	union{
 		float numval;
-		char*  strval;
+		CollectableObject* collObj;
 	} value;
 };
+
+
+
+class StrObj :public CollectableObject{
+public:
+	std::string str;
+	StrObj(std::string s) :str(s) {}
+private:
+};
+
+class FunObj :public CollectableObject{
+public:
+	std::vector<char> bytes;
+	FunObj() {}
+};
+
 
 struct Symbol{
 	Object obj;
 	std::string objName;
+	//Symbol(Object* o, std::string s) :obj(o), objName(s) {}
 };
 
 union CodeWord{

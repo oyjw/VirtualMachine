@@ -1,4 +1,4 @@
-#include "Tokenizer.h"
+#include "tokenizer.h"
 #include "Parser.h"
 #include "Exceptions.h"
 #include "OpCode.h"
@@ -13,13 +13,13 @@ void Parser::term(){
 }
 
 void Parser::term2(){
-	if (tokenizer.getToken()->type == PLUS){
+	if (tokenizer->getToken()->type == PLUS){
 		match(PLUS);
 		factor();
 		byteCode.push_back((char)OP_ADD);
 		term2();
 	}
-	else if (tokenizer.getToken()->type == MINUS){
+	else if (tokenizer->getToken()->type == MINUS){
 		match(MINUS);
 		factor();
 		byteCode.push_back((char)OP_SUB);
@@ -28,9 +28,9 @@ void Parser::term2(){
 }
 
 void Parser::factor(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == LPAREN) {
-		tokenizer.advance();
+		tokenizer->advance();
 		term();
 		match(RPAREN);
 	}
@@ -39,20 +39,20 @@ void Parser::factor(){
 	}
 	else {
 		//char err[100];
-		fprintf(stderr, "%s:%d:%d  factor match fail\n", tokenizer.getFileName(), token->line, token->num);
+		fprintf(stderr, "%s:%d:%d  factor match fail\n", tokenizer->getFileName(), token->line, token->num);
 		exit(1);
 	}
 	factor2();
 }
 
 void Parser::factor2(){
-	if (tokenizer.getToken()->type == STAR){
+	if (tokenizer->getToken()->type == STAR){
 		match(STAR);
 		basic();
 		byteCode.push_back((char)OP_MUL);
 		factor2();
 	}
-	else if (tokenizer.getToken()->type == SLASH){
+	else if (tokenizer->getToken()->type == SLASH){
 		match(SLASH);
 		basic();
 		byteCode.push_back((char)OP_DIV);
@@ -61,14 +61,14 @@ void Parser::factor2(){
 }
 
 void Parser::basic(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == NUM) {
 		float val = (float)atof(token->str.c_str());
 		byteCode.push_back(PUSHREAL);
 		pushFloat(val);
 	}
 	else if (token->type == IDEN) {
-		Token* nexttoken = tokenizer.getToken(1);
+		Token* nexttoken = tokenizer->getToken(1);
 		if (nexttoken->type == LPAREN){
 			functioncall();
 			return;
@@ -79,10 +79,10 @@ void Parser::basic(){
 		byteCode.push_back((char)(isGlobal ? PUSHGLOBAL : PUSHLOCAL));
 		pushWord(n);
 	}
-	tokenizer.advance();
+	tokenizer->advance();
 	/*else if (token->type == MINUS) {
 		match(MINUS);
-		token = tokenizer.getToken();
+		token = tokenizer->getToken();
 		match(NUM);
 		double val = atof(token->str.c_str());
 		val = -val;
@@ -92,7 +92,7 @@ void Parser::basic(){
 
 
 void Parser::program(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type != ENDOF){
 		elem();
 		program();
@@ -100,30 +100,37 @@ void Parser::program(){
 }
 
 void Parser::elem(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == FUNCTION)
 		function();
 	else stmt();
 }
 
 void Parser::stmt(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
-		Token* nexttoken = tokenizer.getToken(1);
-		if (nexttoken->type == EQ)
+		Token* nexttoken = tokenizer->getToken(1);
+		if (nexttoken->type == ASSIGN)
 			assignStmt();
 		else if (nexttoken->type == LPAREN)
 			functioncall();
 		else {
 			std::ostringstream oss;
-			oss<<tokenizer.getlinenum<<"\tUnknown syntax\n\t"<< tokenizer.getlinestr();
+			oss<<tokenizer->getlinenum()<<"\tUnknown syntax\n\t"<< tokenizer->getlinestr();
 			throw SyntaxError(oss.str());
 		}
+	}
+	else if (token->type == PRINT){
+		printStmt();
 	}
 	else if (token->type == RETURN){
 		returnStmt();
 	}
 	match(SEMICOLON);
+}
+
+void Parser::printStmt(){
+
 }
 
 void Parser::returnStmt(){
@@ -132,10 +139,10 @@ void Parser::returnStmt(){
 }
 
 void Parser::assignStmt(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	std::string var = token->str;
-	tokenizer.advance();
-	match(EQ);
+	tokenizer->advance();
+	match(ASSIGN);
 	int n= symTab->putSym(var);
 	term();
 	byteCode.push_back(isGlobal ? STOREGLOBAL : STORELOCAL);
@@ -149,42 +156,42 @@ void Parser::function(){
 	int pos = (int)byteCode.size();
 	pushWord(0);
 	byteCode.push_back((char)BEGINFCALL);
-	Token t = *tokenizer.getToken();
+	Token t = *tokenizer->getToken();
 	if (symTab->findSym(t.str) != -1){
 		std::ostringstream oss;
-		oss << tokenizer.getlinenum << "\tSymbol redefinition\n\t" << tokenizer.getlinestr();
+		oss << tokenizer->getlinenum() << "\tSymbol redefinition\n\t" << tokenizer->getlinestr();
 		throw SymbolError(oss.str());
 	}
 	symTab->putSym(t.str);
-	tokenizer.advance();
+	tokenizer->advance();
 	match(LPAREN);
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	int nargs = 0;
 	symTab = std::make_shared<SymbolTable>(symTab);
 	while (1){
 		if (token->type == IDEN){
 			symTab->putSym(token->str);
 			nargs++;
-			tokenizer.advance();
+			tokenizer->advance();
 			match(COMMA);
-			token = tokenizer.getToken();
+			token = tokenizer->getToken();
 		}
 		else if (token->type == RPAREN){
-			tokenizer.advance();
+			tokenizer->advance();
 			break;
 		}
 		else {
 			std::ostringstream oss;
-			oss << tokenizer.getlinenum << "\tFunction definition error\n\t" << tokenizer.getlinestr();
+			oss << tokenizer->getlinenum() << "\tFunction definition error\n\t" << tokenizer->getlinestr();
 			throw SymbolError(oss.str());
 		}
 	}
-	match(LBRACKET);
+	match(LBRACE);
 	isGlobal = true;
-	token = tokenizer.getToken();
-	while (token->type!=RBRACKET)
+	token = tokenizer->getToken();
+	while (token->type!=RBRACE)
 		stmt();
-	match(RBRACKET);
+	match(RBRACE);
 	int n = byteCode.size() - (pos + 2);
 	setWord(pos, n);
 	byteCode.push_back((char)ADJUST);
@@ -196,15 +203,15 @@ void Parser::function(){
 }
 
 void Parser::functioncall(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (symTab->findSym(token->str) == -1){
 		std::ostringstream oss;
-		oss << tokenizer.getlinenum << "\tUnknown symbol\n\t" << tokenizer.getlinestr();
+		oss << tokenizer->getlinenum() << "\tUnknown symbol\n\t" << tokenizer->getlinestr();
 		throw SymbolError(oss.str());
 	}
-	tokenizer.advance();
+	tokenizer->advance();
 	match(LPAREN);
-	Token* token = tokenizer.getToken();
+	token = tokenizer->getToken();
 	byteCode.push_back((char)PUSHPC);
 	int pos = (int)byteCode.size();
 	pushWord(0);
@@ -214,10 +221,10 @@ void Parser::functioncall(){
 			basic();
 		else{
 			std::ostringstream oss;
-			oss << tokenizer.getlinenum << "\tFunction call error\n\t" << tokenizer.getlinestr();
+			oss << tokenizer->getlinenum() << "\tFunction call error\n\t" << tokenizer->getlinestr();
 			throw SyntaxError(oss.str());
 		}
-		token = tokenizer.getToken();
+		token = tokenizer->getToken();
 		if (token->type == RPAREN){
 			match(RPAREN);
 			break;
@@ -227,7 +234,7 @@ void Parser::functioncall(){
 		}
 		else{
 			std::ostringstream oss;
-			oss << tokenizer.getlinenum << "\tFunction call error\n\t" << tokenizer.getlinestr();
+			oss << tokenizer->getlinenum() << "\tFunction call error\n\t" << tokenizer->getlinestr();
 			throw SyntaxError(oss.str());
 		}
 	}
@@ -236,13 +243,13 @@ void Parser::functioncall(){
 }
 
 void Parser::stmts(){
-	Token* token = tokenizer.getToken();
-	if (token->type == LBRACKET){
-		match(LBRACKET);
-		token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
+	if (token->type == LBRACE){
+		match(LBRACE);
+		token = tokenizer->getToken();
 		while (1){
-			if (token->type == RBRACKET){
-				match(RBRACKET);
+			if (token->type == RBRACE){
+				match(RBRACE);
 				break;
 			}
 			else
@@ -261,7 +268,7 @@ void Parser::ifstmt(){
 	int pos = (int)byteCode.size();
 	pushWord(0);
 	stmts();
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == ELSE){
 		match(ELSE);
 		setWord(pos, (int)byteCode.size() + 2 - (pos + 2));
@@ -282,7 +289,7 @@ void Parser::orExpr(){
 }
 
 void Parser::orExpr2(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == OR){
 		match(OR);
 		andExpr();
@@ -297,7 +304,7 @@ void Parser::andExpr(){
 }
 
 void Parser::andExpr2(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type == AND){
 		match(AND);
 		notExpr();
@@ -307,7 +314,7 @@ void Parser::andExpr2(){
 }
 
 void Parser::notExpr(){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	bool flag = false;
 	if (token->type == NOT){
 		flag = true;
@@ -320,14 +327,14 @@ void Parser::notExpr(){
 
 void Parser::match(TokenType type){
 	match1(type);
-	tokenizer.advance();
+	tokenizer->advance();
 }
 
 void Parser::match1(TokenType type){
-	Token* token = tokenizer.getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type != type) {
 		std::ostringstream oss;
-		oss << tokenizer.getlinenum << "\tSyntax error\n\t" << tokenizer.getlinestr();
+		oss << tokenizer->getlinenum() << "\tSyntax error\n\t" << tokenizer->getlinestr();
 		throw SyntaxError(oss.str());
 	}
 }

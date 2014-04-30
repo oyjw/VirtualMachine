@@ -77,6 +77,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Exceptions.cpp" />
+    <ClCompile Include="Main.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="OpCode.cpp" />
     <ClCompile Include="Parser.cpp" />
@@ -85,6 +86,7 @@
     <ClCompile Include="VirtualMachine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="OpCode.h" />
