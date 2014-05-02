@@ -4,17 +4,35 @@
 #include "SymbolTable.h"
 #include "Object.h"
 
+class ByteCode;
+typedef std::shared_ptr<ByteCode> ByteCodePtr;
+
+class ByteCode{
+private:
+	ByteCodePtr next;
+public:
+	ByteCode() = default;
+	ByteCode(ByteCodePtr n) :next(n) {}
+	std::vector<char> v;
+	void push(char code){
+		v.push_back(code);
+	}
+	ByteCodePtr getNext(){
+		return next;
+	}
+};
+
 class Parser{
 public:
-	Parser(Tokenizer* t,SymPtr tab):isGlobal(true) {
+	Parser(Tokenizer* t,SymPtr tab):isGlobal(true),byteCodePtr(new ByteCode()),byteCode(&byteCodePtr->v) {
 		symTab=tab;
 		tokenizer=t;
 	}
 	~Parser() {
 		delete tokenizer;
 	}
-	std::vector<char>& getByteCode(){
-		return byteCode;
+	ByteCodePtr getByteCodePtr(){
+		return byteCodePtr;
 	}
 	void term();
 	void term2();
@@ -46,26 +64,28 @@ private:
 	void pushWord(int n){
 		CodeWord code;
 		code.word = (short)n;
-		byteCode.push_back(code.c.c1);
-		byteCode.push_back(code.c.c2);
+		byteCode->push_back(code.c.c1);
+		byteCode->push_back(code.c.c2);
 	}
 	void setWord(int pos,int n){
 		CodeWord code;
 		code.word = (short)n;
-		byteCode[pos]=code.c.c1;
-		byteCode[pos+1]=code.c.c2;
+		(*byteCode)[pos]=code.c.c1;
+		(*byteCode)[pos+1]=code.c.c2;
 	}
 	void pushFloat(float f){
 		CodeFloat code;
 		code.f = f;
-		byteCode.push_back(code.c.c1);
-		byteCode.push_back(code.c.c2);
-		byteCode.push_back(code.c.c3);
-		byteCode.push_back(code.c.c4);
+		byteCode->push_back(code.c.c1);
+		byteCode->push_back(code.c.c2);
+		byteCode->push_back(code.c.c3);
+		byteCode->push_back(code.c.c4);
 	}
-	std::vector<char> byteCode;
+	ByteCodePtr byteCodePtr;
+	std::vector<char> *byteCode;
 	Tokenizer *tokenizer;
 	SymPtr symTab;
+	
 	bool isGlobal;
 };
 

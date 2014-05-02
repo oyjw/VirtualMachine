@@ -18,18 +18,35 @@ private:
 	std::vector<Symbol> symVec;
 	SymPtr next;
 	typedef std::map<std::string, int>::iterator map_iter;
+
+	/*const std::string& findSymLocal(int index){
+		assert(index<(int)symVec.size()) ;
+		return symVec[index].objName;
+	}
+*/
+	
 public:
+	std::vector<Symbol>&& getSymbols(){
+		return std::move(symVec);
+	}
 	SymbolTable(SymPtr nextSymTab) :next(nextSymTab) {}
 	SymbolTable() {}
 	~SymbolTable() {
 		for (auto& symbol : symVec){
 			Object& obj=symbol.obj;
-			if (obj.type!=NUMOBJ)
-				delete obj.value.collObj;
+			if (obj.type==FUNOBJ)
+				delete obj.value.funObj;
 		}
 
 	}
 	SymbolTable(const SymbolTable& symTab) =delete;
+	int findSymLocal(const std::string& symbol){
+		map_iter iter = map.find(symbol);
+		if (iter != map.end())
+			return iter->second;
+		return -1;
+	}
+
 	int findSym(const std::string& symbol){
 		map_iter iter = map.find(symbol);
 		if (iter != map.end()) 
@@ -46,21 +63,9 @@ public:
 		}
 		return -1;
 	}
-	int findSymLocal(const std::string& symbol){
-		map_iter iter = map.find(symbol);
-		if (iter != map.end())
-			return iter->second;
-		return -1;
-	}
-
-	const std::string& findSymLocal(int index){
-		if (index<(int)symVec.size()) 
-			return symVec[index].objName;
-	}
+	
 
 	int putSym(const std::string& symbol){
-		if (findSymLocal(symbol)!=-1) 
-			return -1;
 		Object obj = {NILOBJ,0};
 		symVec.push_back({ obj, symbol });
 		int n = symVec.size() - 1;
@@ -76,21 +81,21 @@ public:
 		symVec[n].obj = obj;
 	}
 
-	bool putObj(const std::string& symbol, Object obj){
+	/*bool putObj(const std::string& symbol, Object obj){
 		map_iter iter = map.find(symbol);
 		if (iter == map.end()) return false;
 		symVec[iter->second].obj = obj;
 		return true;
-	}
+	}*/
 	int getSymNum() {
 		return (int)symVec.size();
 	}
-	SymPtr getGlobalSym(){
-		SymPtr p=next;
+	SymPtr getNext(){
+		/*SymPtr p=next;
 		while (next != NULL){
 			p=p->next;
-		}
-		return p;
+		}*/
+		return next;
 	}
 };
 

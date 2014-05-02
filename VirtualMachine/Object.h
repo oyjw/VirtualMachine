@@ -10,29 +10,30 @@ enum ObjectType{
 struct CollectableObject{
 };
 
+
+
+
+class StrObj {
+public:
+	std::string str;
+	StrObj(std::string s) :str(s) {}
+};
+
+class FunObj {
+public:
+	std::vector<char> bytes;
+	int nargs;
+	FunObj() {}
+};
+
 struct Object{
 	ObjectType type;
 	union{
 		float numval;
-		CollectableObject* collObj;
+		StrObj* strObj;
+		FunObj* funObj;
 	} value;
 };
-
-
-
-class StrObj :public CollectableObject{
-public:
-	std::string str;
-	StrObj(std::string s) :str(s) {}
-private:
-};
-
-class FunObj :public CollectableObject{
-public:
-	std::vector<char> bytes;
-	FunObj() {}
-};
-
 
 struct Symbol{
 	Object obj;

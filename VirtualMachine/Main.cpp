@@ -18,7 +18,7 @@ int main(){
 	SymPtr globalSymTab = std::make_shared<SymbolTable>();
 	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, globalSymTab);
 	parser->program();
-	std::shared_ptr<VirtualMachine> vm = std::make_shared< VirtualMachine>(parser->getByteCode(), globalSymTab);
+	std::shared_ptr<VirtualMachine> vm = std::make_shared< VirtualMachine>(std::move(parser->getByteCodePtr()->v), globalSymTab);
 	vm->run();
 	return 0;
 }

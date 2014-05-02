@@ -37,7 +37,7 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 
 
 Token* Tokenizer::getToken(int index){
-	assert(vecPos<=(int)tokenVec.size());
+	assert(vecPos+index<=(int)tokenVec.size());
 	if (vecPos==(int) tokenVec.size())
 		scan();
 	return &tokenVec[vecPos + index];
@@ -52,7 +52,7 @@ void Tokenizer::scan(){
 	bool pushtoken = false;
 	int state = 0;
 	std::string input;
-	while (1){
+	do{
 		std::getline(ifs, input); 
 
 		if (ifs.fail()){
@@ -60,10 +60,7 @@ void Tokenizer::scan(){
 			oss << "file read fail: " << fileName << " : " << line << std::endl;
 			throw std::runtime_error(oss.str());
 		}
-		if (input == "") continue;
-		else 
-			break;
-	}
+	} while (input == "");
 	input += '\n';
 	curLine = input;
 	c = input[num - 1];
@@ -79,7 +76,7 @@ void Tokenizer::scan(){
 				state = 2;
 				token.str += c;
 			}
-			else if (c == '+' || c == '-' || c == '*' || c == '/'){
+			else if (c == '+' || c == '-' || c == '*' || c == '/' || c=='(' || c== ')' || c=='{' || c=='}' ){
 				state = 4;
 				readchar = false;
 			}
@@ -147,6 +144,10 @@ void Tokenizer::scan(){
 			case '-':token.type = MINUS; break;
 			case '*':token.type = STAR; break; 
 			case '/':token.type = SLASH; break;
+			case '(':token.type = LPAREN; break;
+			case ')':token.type = RPAREN; break;
+			case '{':token.type = LBRACE; break;
+			case '}':token.type = RBRACE; break;
 			default:assert(0); break;
 			}
 			pushtoken = true;
@@ -165,7 +166,8 @@ void Tokenizer::scan(){
 		}
 		case 6:{
 			Token& lastToken = tokenVec[tokenVec.size() - 1];
-			if (lastToken.type != SEMICOLON && lastToken.type != LPAREN &&lastToken.type != LBRACE){
+			if (lastToken.type != SEMICOLON &&lastToken.type != LBRACE 
+				&&lastToken.type != RBRACE){
 				token.type = SEMICOLON;
 				pushtoken = true;
 			}

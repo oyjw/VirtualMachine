@@ -18,9 +18,6 @@
     <ClCompile Include="Tokenizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Exceptions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -28,9 +25,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Object.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="OpCode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="VirtualMachine.cpp">
@@ -59,10 +53,10 @@
     <ClInclude Include="OpCode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VirtualMachine.h">
+    <ClInclude Include="common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common.h">
+    <ClInclude Include="VirtualMachine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
