@@ -128,11 +128,17 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			break;
 		}
 		case ADJUST:{
-			int n = getWord(byteCodes,pos);
-			Object obj={NILOBJ,0};
-			for(int i=0;i<n;++i){
-				stack.push_back(obj);
-			}		
+			int nDecls = byteCodes[pos++];
+			top = top+nDecls;
+			if (nDecls > 0){
+				Object obj={NILOBJ,0};
+				for(int i=0;i<nDecls;++i){
+					stack.push_back(obj);
+				}		
+			}
+			else if (nDecls < 0){
+				stack.resize(top);
+			}
 			break;
 		}
 		case CALLFUNC:{
@@ -141,21 +147,22 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			int newBase = top - nargs;
 			assert(obj.type == FUNOBJ);
 			execute(obj.value.funObj->bytes,newBase);
-			top = newBase - 1;
-			stack.resize(top);
+			/*top = newBase - 1;
+			stack.resize(top);*/
 			break;
 		}
 		case RETCODE:{
 			stack[base - 1] = stack[top-1];
 			top=base;
 			stack.resize(top);
-			break;
+			return ;
 		}
 		case PRINTFUNC:{
-			int n = getWord(byteCodes,pos);
-			Object& obj = symTab->getObj(n);
+			Object& obj = stack[top-1];
 			if (obj.type == NUMOBJ)
-				std::cout << symTab->getObj(n).value.numval <<std::endl;
+				std::cout << (int)obj.value.numval <<std::endl;
+			top--;
+			stack.resize(top);
 			system("pause");
 			break;
 		}
