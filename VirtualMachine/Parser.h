@@ -4,8 +4,12 @@
 #include "SymbolTable.h"
 #include "Object.h"
 
+#define WORDSIZE 2
+
 class ByteCode;
 typedef std::shared_ptr<ByteCode> ByteCodePtr;
+
+typedef std::vector<std::pair<size_t,size_t>> labelList;
 
 class ByteCode{
 private:
@@ -34,6 +38,9 @@ public:
 	ByteCodePtr getByteCodePtr(){
 		return byteCodePtr;
 	}
+	void declarations();
+	void decl();
+	int declList();
 	void term();
 	void term2();
 	void factor();
@@ -47,14 +54,14 @@ public:
 	void returnStmt();
 	void printStmt();
 	void assignStmt();
-	void ifstmt();
-	void orExpr();
-	void orExpr2();
-	void andExpr();
-	void andExpr2();
-	void notExpr();
+	void ifStmt();
+	void orExpr(labelList& orLabel,labelList& andLabel);
+	void orExpr2(labelList& orLabel,labelList& andLabel);
+	void andExpr(labelList& orLabel,labelList& andLabel);
+	void andExpr2(labelList& orLabel,labelList& andLabel);
+	void notExpr(labelList& orLabel,labelList& andLabel,bool notFlag);
 	void Expr();
-	void rvalue();
+	void relaExpr();
 	void function();
 	void program();
 	void functioncall();
@@ -63,13 +70,13 @@ private:
 	void match1(TokenType type);
 	void pushWord(int n){
 		CodeWord code;
-		code.word = (short)n;
+		code.word = (unsigned short)n;
 		byteCode->push_back(code.c.c1);
 		byteCode->push_back(code.c.c2);
 	}
-	void setWord(int pos,int n){
+	void setWord(std::vector<char>::size_type pos,int n){
 		CodeWord code;
-		code.word = (short)n;
+		code.word = (unsigned short)n;
 		(*byteCode)[pos]=code.c.c1;
 		(*byteCode)[pos+1]=code.c.c2;
 	}

@@ -4,7 +4,7 @@
 #include <vector>
 
 enum ObjectType{
-	NUMOBJ, STROBJ, FUNOBJ,MARKOBJ,NILOBJ
+	NUMOBJ, STROBJ, FUNOBJ,BOOLOBJ,NILOBJ
 };
 
 struct CollectableObject{
@@ -29,6 +29,7 @@ public:
 struct Object{
 	ObjectType type;
 	union{
+		bool boolval;
 		float numval;
 		StrObj* strObj;
 		FunObj* funObj;
@@ -42,7 +43,7 @@ struct Symbol{
 };
 
 union CodeWord{
-	short word;
+	unsigned short word;
 	struct{
 		char c1;
 		char c2;

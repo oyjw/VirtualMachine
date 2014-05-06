@@ -23,6 +23,7 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 		throw std::runtime_error(oss.str());
 	}
 	this->fileName=fileName;
+	reservedWord["var"]=VAR;
 	reservedWord["for"] = FOR;
 	reservedWord["if"] = IF;
 	reservedWord["while"] = WHILE;
@@ -53,6 +54,7 @@ void Tokenizer::scan(){
 	int state = 0;
 	std::string input;
 	do{
+		line++;
 		std::getline(ifs, input); 
 
 		if (ifs.fail()){
@@ -76,7 +78,8 @@ void Tokenizer::scan(){
 				state = 2;
 				token.str += c;
 			}
-			else if (c == '+' || c == '-' || c == '*' || c == '/' || c=='(' || c== ')' || c=='{' || c=='}' ){
+			else if (c == '+' || c == '-' || c == '*' || c == '/' || c=='(' || c== ')' || c=='{' || c=='}' ||
+				c == ',' ){
 				state = 4;
 				readchar = false;
 			}
@@ -85,6 +88,12 @@ void Tokenizer::scan(){
 			else if (c == '\n'){
 				state = 6;
 				readchar=false;
+			}
+			else if (c == '<'){
+				state = 7;
+			}
+			else if (c == '>'){
+				state = 8;
 			}
 			if (state!=0) {
 				token.line = line;
@@ -148,6 +157,7 @@ void Tokenizer::scan(){
 			case ')':token.type = RPAREN; break;
 			case '{':token.type = LBRACE; break;
 			case '}':token.type = RBRACE; break;
+			case ',':token.type = COMMA; break;
 			default:assert(0); break;
 			}
 			pushtoken = true;
@@ -173,6 +183,28 @@ void Tokenizer::scan(){
 			}
 			break;
 		}
+		case 7:{
+			if (c == '='){
+				token.type = LE;
+			}
+			else {
+				token.type = LT;
+				readchar = false;
+			}
+			pushtoken = true;
+			break;
+		}
+		case 8:{
+			if (c == '='){
+				token.type = GE;
+			}
+			else {
+				token.type = GT;
+				readchar = false;
+			}
+			pushtoken = true;
+			break;
+		}
 		default: break;
 		}
 		if (pushtoken){
@@ -183,7 +215,6 @@ void Tokenizer::scan(){
 		}
 		if (readchar){
 			if (num == input.size()) {
-				line++;
 				break;
 			}
 			num++;

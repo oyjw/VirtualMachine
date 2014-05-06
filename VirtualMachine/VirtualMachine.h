@@ -44,6 +44,8 @@ public:
 		}
 	}
 private:
+	void compute(int opcode);
+	void compare(int opcode);
 	int getWord(std::vector<char>& byteCode ,int &pos){
 		CodeWord code;
 		code.c.c1 = byteCode[pos++];

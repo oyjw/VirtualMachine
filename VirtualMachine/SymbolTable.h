@@ -5,12 +5,14 @@
 #include <string>
 #include <cassert>
 #include "Object.h"
-
+#include <utility>
 
 #include <memory>
 
 class SymbolTable;
 typedef std::shared_ptr<SymbolTable> SymPtr;
+
+typedef std::pair<bool,int> SymPair;
 
 class SymbolTable{
 private:
@@ -26,42 +28,50 @@ private:
 */
 	
 public:
+	bool isGlobal;
+	int nLocalVars;
 	std::vector<Symbol>&& getSymbols(){
 		return std::move(symVec);
 	}
-	SymbolTable(SymPtr nextSymTab) :next(nextSymTab) {}
-	SymbolTable() {}
+	SymbolTable(SymPtr nextSymTab,int n) :next(nextSymTab),isGlobal(false),nLocalVars(n) {}
+	SymbolTable():isGlobal(true),nLocalVars(0) {
+	}
 	~SymbolTable() {
-		for (auto& symbol : symVec){
-			Object& obj=symbol.obj;
-			if (obj.type==FUNOBJ)
-				delete obj.value.funObj;
+		if (isGlobal){
+			for (auto& symbol : symVec){
+				Object& obj=symbol.obj;
+				if (obj.type==FUNOBJ)
+					delete obj.value.funObj;
+			}
 		}
-
 	}
 	SymbolTable(const SymbolTable& symTab) =delete;
-	int findSymLocal(const std::string& symbol){
+	bool isSymExistLocal(const std::string& symbol){
 		map_iter iter = map.find(symbol);
 		if (iter != map.end())
-			return iter->second;
-		return -1;
+			return true;
+		return false;
 	}
 
-	int findSym(const std::string& symbol){
+	std::pair<bool,int> findSym(const std::string& symbol){
 		map_iter iter = map.find(symbol);
 		if (iter != map.end()) 
-			return iter->second;
+			return std::make_pair(isGlobal,iter->second+nLocalVars);
 		SymPtr sp=next;
-		int symNum = (int)symVec.size();
 		while (sp!=NULL){
 			std::map<std::string,int> nextMap=sp->map;
 			iter = nextMap.find(symbol);
-			if (iter!=nextMap.end()) 
-				return symNum+iter->second;
+			if (iter != nextMap.end()) {
+				int ret;
+				if(sp->isGlobal)
+					ret=iter->second;
+				else
+					ret=sp->nLocalVars+iter->second;
+				return std::make_pair(sp->isGlobal,ret);
+			}
 			sp = sp->next;
-			symNum += int(sp->symVec.size());
 		}
-		return -1;
+		return std::make_pair(false,-1);
 	}
 	
 
@@ -89,6 +99,9 @@ public:
 	}*/
 	int getSymNum() {
 		return (int)symVec.size();
+	}
+	int getLocalVars() {
+		return (int)symVec.size() + nLocalVars;
 	}
 	SymPtr getNext(){
 		/*SymPtr p=next;
