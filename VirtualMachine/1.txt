@@ -5,6 +5,8 @@ func test(n){
 	return n*test(n-1)
 }
 
+
+
 result=0
 while(a){
 	result=result+a
