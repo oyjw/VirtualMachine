@@ -101,20 +101,15 @@ void Parser::term2(){
 
 void Parser::factor(){
 	Token* token = tokenizer->getToken();
-	if (token->type == LPAREN) {
-		tokenizer->advance();
-		term();
-		match(RPAREN);
-	}
-	else if (token->type == NUM || token->type == IDEN) {
+	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS) {
 		basic();
+		factor2();
 	}
 	else {
 		//char err[100];
 		fprintf(stderr, "%s:%d:%d  factor match fail\n", tokenizer->getFileName(), token->line, token->num);
 		exit(1);
 	}
-	factor2();
 }
 
 void Parser::factor2(){
@@ -138,6 +133,16 @@ void Parser::basic(){
 		float val = (float)atof(token->str.c_str());
 		byteCode->push_back(PUSHREAL);
 		pushFloat(val);
+		tokenizer->advance();
+	}
+	else if (token->type == MINUS){
+		match(MINUS);
+		token = tokenizer->getToken();
+		match(NUM);
+		float val = (float)atof(token->str.c_str());
+		val=-val;
+		byteCode->push_back(PUSHREAL);
+		pushFloat(val);
 	}
 	else if (token->type == IDEN) {
 		Token* nexttoken = tokenizer->getToken(1);
@@ -150,15 +155,17 @@ void Parser::basic(){
 			throw SymbolError("");
 		byteCode->push_back(pair.first ? PUSHGLOBAL : PUSHLOCAL);
 		pushWord(pair.second);
+		tokenizer->advance();
 	}
-	tokenizer->advance();
-	/*else if (token->type == MINUS) {
-		match(MINUS);
-		token = tokenizer->getToken();
-		match(NUM);
-		double val = atof(token->str.c_str());
-		val = -val;
-	}*/
+	else if (token->type == LPAREN){
+		match(LPAREN);
+		term();
+		match(RPAREN);
+	}
+	else {
+
+		throw SyntaxError("");
+	}
 }
 
 
@@ -205,6 +212,16 @@ void Parser::stmt(){
 	}
 	else if (token->type == VAR){
 		declarations();
+	}
+	else if (token->type == WHILE){
+		whileStmt();
+		matchSemi=false;
+	}
+	else if (token->type == BREAK){
+		breakStmt();
+	}
+	else if (token->type == CONTINUE){
+		continueStmt();
 	}
 	else {
 		std::ostringstream oss;
@@ -382,8 +399,8 @@ void Parser::stmts(){
 
 void Parser::ifStmt(){
 	match(IF);
-	labelList orLabel;
-	labelList andLabel;
+	LabelList orLabel;
+	LabelList andLabel;
 	match(LPAREN);
 	orExpr(orLabel,andLabel);
 	match(RPAREN);
@@ -424,12 +441,12 @@ void Parser::ifStmt(){
 	symTab = symTab->getNext();
 }
 
-void Parser::orExpr(labelList& orLabel,labelList& andLabel){
+void Parser::orExpr(LabelList& orLabel,LabelList& andLabel){
 	andExpr(orLabel,andLabel);
 	orExpr2(orLabel,andLabel);
 }
 
-void Parser::orExpr2(labelList& orLabel,labelList& andLabel){
+void Parser::orExpr2(LabelList& orLabel,LabelList& andLabel){
 	Token* token = tokenizer->getToken();
 	if (token->type == OR){
 		match(OR);
@@ -438,8 +455,8 @@ void Parser::orExpr2(labelList& orLabel,labelList& andLabel){
 	}
 }
 
-void Parser::andExpr(labelList& orLabel,labelList& andLabel){
-	labelList andLabel2;
+void Parser::andExpr(LabelList& orLabel,LabelList& andLabel){
+	LabelList andLabel2;
 	notExpr(orLabel,andLabel2,false);
 	andExpr2(orLabel,andLabel2);
 	byteCode->push_back(JMP);
@@ -451,7 +468,7 @@ void Parser::andExpr(labelList& orLabel,labelList& andLabel){
 	}
 }
 
-void Parser::andExpr2(labelList& orLabel,labelList& andLabel){
+void Parser::andExpr2(LabelList& orLabel,LabelList& andLabel){
 	Token* token = tokenizer->getToken();
 	if (token->type == AND){
 		match(AND);
@@ -460,7 +477,7 @@ void Parser::andExpr2(labelList& orLabel,labelList& andLabel){
 	}
 }
 
-void Parser::notExpr(labelList& orLabel,labelList& andLabel,bool notFlag){
+void Parser::notExpr(LabelList& orLabel,LabelList& andLabel,bool notFlag){
 	Token* token = tokenizer->getToken();
 	if (token->type == NOT){
 		match(NOT);
@@ -472,8 +489,8 @@ void Parser::notExpr(labelList& orLabel,labelList& andLabel,bool notFlag){
 	}
 	else if (token->type == LPAREN){
 		match(LPAREN);
-		labelList orLabel2;
-		labelList andLabel2;
+		LabelList orLabel2;
+		LabelList andLabel2;
 		orExpr(orLabel2,andLabel2);
 		
 		if(!notFlag){
@@ -532,6 +549,68 @@ void Parser::relaExpr(){
 	}
 }
 
+void Parser::whileStmt(){
+	match(WHILE);
+	if (loopLabelPtr == NULL){
+		loopLabelPtr = std::make_shared<LoopLabel>();
+	}
+	else{
+		loopLabelPtr = std::make_shared<LoopLabel>(loopLabelPtr);
+	}
+	loopLabelPtr->start=byteCode->size();
+	LabelList orLabel;
+	LabelList andLabel;
+	match(LPAREN);
+	orExpr(orLabel,andLabel);
+	match(RPAREN);
+	byteCode->push_back((char)JMP);
+	int pos = (int)byteCode->size();
+	pushWord(0);
+
+	for (auto& p : andLabel){
+		setWord(p.first,p.second);
+	}
+
+	for (auto& i : orLabel){
+		setWord(i.first, byteCode->size()-i.first-WORDSIZE);
+	}
+
+	symTab = std::make_shared<SymbolTable>(symTab,symTab->isGlobal?0:symTab->getLocalVars());
+	stmts();
+	int nLocals = symTab->getSymNum();
+	byteCode->push_back(ADJUST);
+	byteCode->push_back((char)-nLocals);
+	symTab = symTab->getNext();
+
+	byteCode->push_back(JMP);
+	pushWord(loopLabelPtr->start-(byteCode->size()+2));
+
+	setWord(pos, byteCode->size()-pos-WORDSIZE);
+	for (auto pos : loopLabelPtr->breaks){
+		setWord(pos, byteCode->size()-pos-WORDSIZE);
+	}
+	for (auto pos : loopLabelPtr->continues){
+		setWord(pos, byteCode->size()-pos-WORDSIZE);
+	}
+	loopLabelPtr = loopLabelPtr->next;
+}
+
+void Parser::breakStmt(){
+	match(BREAK);
+	match(SEMICOLON);
+	byteCode->push_back(JMP);
+	loopLabelPtr->breaks.push_back(byteCode->size());
+	pushWord(0);
+}
+
+void Parser::continueStmt(){
+	match(CONTINUE);
+	match(SEMICOLON);
+	byteCode->push_back(JMP);
+	loopLabelPtr->continues.push_back(byteCode->size());
+	pushWord(0);
+}
+
 void Parser::match(TokenType type){
 	match1(type);
 	tokenizer->advance();
@@ -542,7 +621,7 @@ void Parser::match1(TokenType type){
 	if (token->type != type) {
 		std::ostringstream oss;
 		oss << tokenizer->getlinenum() << "\tSyntax error\n\t" << tokenizer->getlinestr();
-		throw SyntaxError(oss.str());
+ 		throw SyntaxError(oss.str());
 	}
 }
 

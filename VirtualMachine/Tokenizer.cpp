@@ -13,7 +13,7 @@
 #include <iostream>
 #endif
 
-Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), line(1), num(1){
+Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), line(0), num(1){
 	wchar_t buf[1024];
 	GetCurrentDirectory(1024, buf);
 	std::wcout<< buf <<std::endl;
@@ -27,6 +27,8 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 	reservedWord["for"] = FOR;
 	reservedWord["if"] = IF;
 	reservedWord["while"] = WHILE;
+	reservedWord["break"] = BREAK;
+	reservedWord["continue"] = CONTINUE;
 	reservedWord["else"] = ELSE;
 	reservedWord["print"] = PRINT;
 	reservedWord["func"] = FUNCTION;
@@ -51,6 +53,7 @@ void Tokenizer::scan(){
 	char c;
 	bool readchar = true;
 	bool pushtoken = false;
+	bool minus = false;
 	int state = 0;
 	std::string input;
 	do{

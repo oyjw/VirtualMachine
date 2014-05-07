@@ -43,7 +43,7 @@ struct Symbol{
 };
 
 union CodeWord{
-	unsigned short word;
+	short word;
 	struct{
 		char c1;
 		char c2;
