@@ -16,7 +16,9 @@ struct CollectableObject{
 class StrObj {
 public:
 	std::string str;
-	StrObj(std::string s) :str(s) {}
+	bool mark;
+	StrObj() :mark(false) {}
+	StrObj(const std::string& s):str(s),mark(false) {}
 };
 
 class FunObj {
@@ -24,6 +26,21 @@ public:
 	std::vector<char> bytes;
 	int nargs;
 	FunObj() {}
+};
+
+class clsType {
+public:
+	std::vector<FunObj> methods;
+	std::vector<std::string> fields;
+	
+	clsType() {}
+};
+
+class clsObj {
+public:
+	clsType *metadata;
+	
+	clsObj() {}
 };
 
 struct Object{

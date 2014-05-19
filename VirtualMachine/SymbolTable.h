@@ -104,16 +104,8 @@ public:
 		return (int)symVec.size() + nLocalVars;
 	}
 	SymPtr getNext(){
-		/*SymPtr p=next;
-		while (next != NULL){
-			p=p->next;
-		}*/
 		return next;
 	}
 };
-
-
-
-
 
 #endif

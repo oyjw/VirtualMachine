@@ -49,7 +49,7 @@
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -78,6 +78,7 @@
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="slang.cpp" />
     <ClCompile Include="SymbolTable.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="VirtualMachine.cpp" />
@@ -88,6 +89,8 @@
     <ClInclude Include="Object.h" />
     <ClInclude Include="OpCode.h" />
     <ClInclude Include="Parser.h" />
+    <ClInclude Include="slang.h" />
+    <ClInclude Include="StringPool.h" />
     <ClInclude Include="SymbolTable.h" />
     <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="VirtualMachine.h" />

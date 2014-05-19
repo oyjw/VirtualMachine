@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <cassert>
-#include <functional>
 #include <fstream>
 #include <sstream>
 #include <exception>
@@ -36,6 +35,10 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 	reservedWord["not"] = NOT;
 	reservedWord["and"] = AND;
 	reservedWord["or"] = OR;
+
+	reservedWord["class"] = CLASS;
+	reservedWord["self"] = SELF;
+	reservedWord["__init__"] = INITFUNC;
 }
 
 
@@ -43,7 +46,8 @@ Token* Tokenizer::getToken(int index){
 	assert(vecPos+index<=(int)tokenVec.size());
 	if (vecPos==(int) tokenVec.size())
 		scan();
-	return &tokenVec[vecPos + index];
+	Token* token = &tokenVec[vecPos + index];
+	return token;
 }
 
 void Tokenizer::scan(){
@@ -53,7 +57,6 @@ void Tokenizer::scan(){
 	char c;
 	bool readchar = true;
 	bool pushtoken = false;
-	bool minus = false;
 	int state = 0;
 	std::string input;
 	do{
@@ -97,6 +100,9 @@ void Tokenizer::scan(){
 			}
 			else if (c == '>'){
 				state = 8;
+			}
+			else if (c == '"'){
+				state = 9;
 			}
 			if (state!=0) {
 				token.line = line;
@@ -208,6 +214,16 @@ void Tokenizer::scan(){
 			pushtoken = true;
 			break;
 		}
+		case 9:{
+			if (c != '"'){
+				token.str += c;
+			}
+			else {
+				token.type = STRING;
+				pushtoken = true;
+			}
+			break;
+		}
 		default: break;
 		}
 		if (pushtoken){
@@ -236,5 +252,43 @@ void Tokenizer::scan(){
 
 void Tokenizer::advance(int step){
 	vecPos += step;
+}
+
+std::string getTypeStr(int type){
+	switch (type){
+	case PLUS:return "+";
+	case MINUS:return "-";
+	case STAR:return "*";
+	case SLASH:return "/";
+	case VAR:return "var";
+	case IDEN:return "identifier";
+	case LPAREN:return "(";
+	case RPAREN:return ")";
+	case LBRACE:return "{";
+	case COMMA:return ";";
+	default: return "";
+	}
+}
+
+void Tokenizer::expectedError(int type,Token* token){
+	std::string message = token->str+" doesn't match , miss " + getTypeStr(type);
+	error(message,token);
+}
+
+void Tokenizer::error(const std::string& message,Token* token,int errorType){
+	std::ostringstream oss;
+	oss << fileName << ":" << line << ":";
+	if (token != 0){
+		 oss<< token->num << ":";
+	}
+	oss << message << "\n" << curLine << std::endl;
+	if (errorType == 0)
+ 		throw SyntaxError(oss.str());
+	else if (errorType == 1)
+		throw SymbolError(oss.str());
+	else if (errorType == 2)
+		throw TypeError(oss.str());
+	else if (errorType == 3)
+		throw TokenError(oss.str());
 }
 

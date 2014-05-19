@@ -1,13 +1,21 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
-#include "Tokenizer.h"
-#include "SymbolTable.h"
-#include "Object.h"
+#include <vector>
+#include <memory>
 
 #define WORDSIZE 2
+class SymbolTable;
+typedef std::shared_ptr<SymbolTable> SymPtr;
 
+class Tokenizer;
+class StringPool;
 class ByteCode;
 typedef std::shared_ptr<ByteCode> ByteCodePtr;
+
+typedef std::vector<std::pair<size_t,size_t>> LabelList;
+
+struct LoopLabel;
+typedef std::shared_ptr<LoopLabel> LoopLabelPtr;
 
 class ByteCode{
 private:
@@ -24,10 +32,6 @@ public:
 	}
 };
 
-typedef std::vector<std::pair<size_t,size_t>> LabelList;
-
-struct LoopLabel;
-typedef std::shared_ptr<LoopLabel> LoopLabelPtr;
 
 struct LoopLabel{
 	size_t start;
@@ -40,7 +44,8 @@ struct LoopLabel{
 
 class Parser{
 public:
-	Parser(Tokenizer* t,SymPtr tab):isGlobal(true),byteCodePtr(new ByteCode()),byteCode(&byteCodePtr->v) {
+	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp):byteCodePtr(bcp),
+		byteCode(&byteCodePtr->v),stringPoolPtr(sp) {
 		symTab=tab;
 		tokenizer=t;
 	}
@@ -76,41 +81,24 @@ public:
 	void andExpr(LabelList& orLabel,LabelList& andLabel);
 	void andExpr2(LabelList& orLabel,LabelList& andLabel);
 	void notExpr(LabelList& orLabel,LabelList& andLabel,bool notFlag);
-	void Expr();
 	void relaExpr();
 	void function();
 	void program();
 	void functioncall();
+
+	void classDefinition();
 private:
-	void match(TokenType type);
-	void match1(TokenType type);
-	void pushWord(int n){
-		CodeWord code;
-		code.word = (unsigned short)n;
-		byteCode->push_back(code.c.c1);
-		byteCode->push_back(code.c.c2);
-	}
-	void setWord(std::vector<char>::size_type pos,int n){
-		CodeWord code;
-		code.word = (short)n;
-		(*byteCode)[pos]=code.c.c1;
-		(*byteCode)[pos+1]=code.c.c2;
-	}
-	void pushFloat(float f){
-		CodeFloat code;
-		code.f = f;
-		byteCode->push_back(code.c.c1);
-		byteCode->push_back(code.c.c2);
-		byteCode->push_back(code.c.c3);
-		byteCode->push_back(code.c.c4);
-	}
+	void match(int type);
+	void pushWord(int n);
+	void setWord(std::vector<char>::size_type pos,int n);
+	void pushFloat(float f);
+	std::shared_ptr<StringPool> stringPoolPtr;
 	ByteCodePtr byteCodePtr;
 	std::vector<char> *byteCode;
 	Tokenizer *tokenizer;
 	SymPtr symTab;
 	
 	LoopLabelPtr loopLabelPtr;
-	bool isGlobal;
 };
 
 #endif

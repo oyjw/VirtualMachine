@@ -2,13 +2,21 @@
 #include "OpCode.h"
 #include "Object.h"
 #include "Exceptions.h"
+#include "SymbolTable.h"
+#include "StringPool.h"
+#include "slang.h"
+#include "Tokenizer.h"
+#include "Parser.h"
 #include <cassert>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
+
+VirtualMachine::VirtualMachine():threshold(100),top(0),symTab(new SymbolTable),byteCodePtr(new ByteCode),stringPoolPtr(new StringPool) {}
+
 void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
-	int pos = 0;
+	size_t pos = 0;
 	while (pos <byteCodes.size()){
 		switch (byteCodes[pos++]){
 		case PUSHLOCAL:{
@@ -38,10 +46,19 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			break;
 		}
 		case PUSHREAL:{
-			int f = getFloat(byteCodes,pos);
+			float f = getFloat(byteCodes,pos);
 			Object obj;
 			obj.type=NUMOBJ;
 			obj.value.numval=f;
+			stack.push_back(obj);
+			top++;
+			break;
+		}
+		case PUSHSTRING:{
+			int index = getWord(byteCodes,pos);
+			Object obj;
+			obj.type = STROBJ;
+			obj.value.strObj = stringPoolPtr->getStrObj(index);
 			stack.push_back(obj);
 			top++;
 			break;
@@ -56,7 +73,31 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			else if (l.type == STROBJ && r.type==NUMOBJ || 
 					l.type == NUMOBJ && r.type == STROBJ ||
 					l.type==STROBJ && r.type==STROBJ){
-			
+				nobjs++;
+				collect();
+				std::string leftStr;
+				std::string rightStr;
+				if( l.type == NUMOBJ ){
+					char buf[1024];
+					sprintf_s(buf, "%f",l.value.numval);
+					leftStr = buf;
+				}
+				else 
+					leftStr = l.value.strObj->str;
+				if( r.type == NUMOBJ ){
+					char buf[1024];
+					sprintf_s(buf, "%f",r.value.numval);
+					rightStr = buf;
+				}
+
+				else 
+					rightStr = l.value.strObj->str;
+				int index = stringPoolPtr->putString(leftStr+rightStr);
+				l.type = STROBJ;
+				l.value.strObj = stringPoolPtr->getStrObj(index);
+			}
+			else{
+				assert(0);
 			}
 			top--;
 			stack.resize(top);
@@ -161,6 +202,8 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			Object& obj = stack[top-1];
 			if (obj.type == NUMOBJ)
 				std::cout << (int)obj.value.numval <<std::endl;
+			else if (obj.type == STROBJ)
+				std::cout << obj.value.strObj->str <<std::endl;
 			top--;
 			stack.resize(top);
 			system("pause");
@@ -213,8 +256,16 @@ void VirtualMachine::compare(int opcode){
 	stack.resize(top);
 }
 
+void VirtualMachine::collect(){
+	if (nobjs > threshold){
+		stringPoolPtr->collect();
+		nobjs = stringPoolPtr->getStrNum();
+		threshold = nobjs*2;
+	}
+}
+
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
-	int pos = 0;
+	size_t pos = 0;
 	while (pos <byteCodes.size()){
 		switch (byteCodes[pos++]){
 		case PUSHLOCAL:{
@@ -243,7 +294,7 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 		}
 		case PUSHREAL:{
 			ofs << pos-1;
-			int f = getFloat(byteCodes,pos);
+			float f = getFloat(byteCodes,pos);
 			ofs << "\tPUSHREAL\t" << f << std::endl;
 			break;
 		}
@@ -327,4 +378,56 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 		default:assert(0);
 		}
 	}
+}
+
+void VirtualMachine::run(){
+	execute(byteCodePtr->v,0);
+}
+
+void VirtualMachine::run(const std::string& fileName) {
+	std::ofstream ofs(fileName);
+	if (!ofs.is_open()){
+		std::ostringstream oss;
+		oss << "file open fail: " << fileName << std::endl;
+		throw std::runtime_error(oss.str());
+	}
+	dump(byteCodePtr->v, ofs);
+	for (auto& symbol : symTab->getSymbols()){
+		if (symbol.obj.type == FUNOBJ){
+				
+			ofs << symbol.objName << ":" <<std::endl;
+			std::vector<char> & v=symbol.obj.value.funObj->bytes;
+			for (auto& c : v){
+				std::cout << (int)c <<std::endl;
+			}
+				system("pause");
+			dump(symbol.obj.value.funObj->bytes,ofs);
+		}
+	}
+}
+
+int VirtualMachine::getWord(std::vector<char>& byteCode ,size_t &pos){
+	CodeWord code;
+	code.c.c1 = byteCode[pos++];
+	code.c.c2 = byteCode[pos++];
+	return code.word;
+}
+
+float VirtualMachine::getFloat(std::vector<char>& byteCode ,size_t &pos){
+	CodeFloat code;
+	code.c.c1 = byteCode[pos++];
+	code.c.c2 = byteCode[pos++];
+	code.c.c3 = byteCode[pos++];
+	code.c.c4 = byteCode[pos++];
+	return code.f;
+}
+
+
+
+bool VirtualMachine::pushFunObj(const std::string& symbol){
+	auto p = symTab->findSym(symbol);
+	if (!p.first){
+		return false;
+	}
+	stack.push_back(symTab->getObj(p.second));
 }
