@@ -145,6 +145,10 @@ void Parser::basic(){
 	}
 	else if (token->type == IDEN) {
 		Token* nexttoken = tokenizer->getToken(1);
+		if (nexttoken->type == COLON){
+			objCall();
+			return;
+		}
 		if (nexttoken->type == LPAREN){
 			functioncall();
 			return;
@@ -315,18 +319,22 @@ void Parser::functioncall(){
 	if (p.second == -1){
 		tokenizer->error("unknown symbol", function, SYMBOLERROR);
 	}
-	Object& obj = sp->getObj(p.second);
-	if (obj.type != FUNOBJ){
-		tokenizer->error("not callable", function, TYPEERROR);
-	}
 	assert(p.first);
 	byteCode->push_back(PUSHGLOBAL);
 	pushWord(p.second);
 
 	tokenizer->advance();
 	match(LPAREN);
-	token = tokenizer->getToken();
+	int nargs=funcArgs(function);
+	
+	match(RPAREN);
+	byteCode->push_back((char)CALLFUNC);
+	byteCode->push_back((char)nargs);
+}
+
+int Parser::funcArgs(Token* function){
 	int nargs=0;
+	Token* token = tokenizer->getToken();
 	if (token->type!=RPAREN){
 		while(1){
 			if (nargs > 16){
@@ -341,14 +349,8 @@ void Parser::functioncall(){
 			token = tokenizer->getToken();
 		}
 	}
-	if (obj.value.funObj->nargs != nargs){
-		tokenizer->error("unexpected number of parameters", function);
-	}
-	match(RPAREN);
-	byteCode->push_back((char)CALLFUNC);
-	byteCode->push_back((char)nargs);
+	return nargs;
 }
-
 void Parser::stmts(){
 	Token* token = tokenizer->getToken();
 	if (token->type == LBRACE){
@@ -578,58 +580,127 @@ void Parser::continueStmt(){
 	pushWord(0);
 }
 
+void Parser::objCall(){
+	Token* token = tokenizer->getToken();
+	tokenizer->advance(2);
+	auto p = symTab->findSym(token->str);
+	if (p.second == -1){
+		auto iter = clsNames.find(token->str);
+		if (iter == clsNames.end()){
+			tokenizer->error("symbol not found",token,SYMBOLERROR);
+		}
+		ClsType& cls = clsData->at(iter->second);
+		token = tokenizer->getToken();
+		tokenizer->advance();
+		Token* token2 = tokenizer->getToken();
+		if (token2->type == LPAREN){
+			auto iter2 = cls.methodMap.find(token->str);
+			if (iter2 == cls.methodMap.end()){
+				tokenizer->error("method not found",token,SYMBOLERROR);
+			}
+			if (!(iter2->second.second)){
+				tokenizer->error("not static method",token,SYMBOLERROR);
+			}
+			byteCode->push_back((char)GETCLSMETHOD);
+			pushWord(iter->second);
+			byteCode->push_back(iter2->second.first);
+			tokenizer->advance();
+			int nargs = funcArgs(token);
+			match(RPAREN);
+			byteCode->push_back(CALLFUNC);
+			byteCode->push_back((char)nargs);
+		}
+		else {
+			auto iter2 = cls.fieldMap.find(token->str);
+			if (iter2 == cls.fieldMap.end()){
+				tokenizer->error("field not found",token,SYMBOLERROR);
+			}
+			if (!(iter2->second.second)){
+				tokenizer->error("not static field",token,SYMBOLERROR);
+			}
+			byteCode->push_back((char)GETCLSFIELD);
+			pushWord(iter->second);
+			byteCode->push_back(iter2->second.first);
+		}
+	}
+
+	token = tokenizer->getToken();
+	match(IDEN);
+	
+	int index = stringPoolPtr->putStringConstant(token->str);
+	byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
+	pushWord(p.second);
+	byteCode->push_back((char)GETATTR);
+	byteCode->push_back((char)index);
+	Token *token2 = tokenizer->getToken();
+	if (token2->type == LPAREN){
+		tokenizer->advance();
+		int nargs = funcArgs(token);
+		match(RPAREN);
+		byteCode->push_back(CALLFUNC);
+		byteCode->push_back((char)nargs);
+	}
+
+}
+
+
+void Parser::newExpr(){
+	tokenizer->advance();
+	Token* token = tokenizer->getToken();
+	auto iter = clsNames.find(token->str);
+	if (iter == clsNames.end()){
+		tokenizer->error("class not found",token,SYMBOLERROR);
+	}
+	byteCode->push_back((char)CREATEOBJ);
+	pushWord(iter->second);
+}
+
 void Parser::classDefinition(){
 	match(CLASS);
-	Token t = *tokenizer->getToken();
-	match(IDEN);
-	if (symTab->isSymExistLocal(t.str)){
-		tokenizer->error("Symbol redefinition",&t,SYMBOLERROR);
-	}
-	symTab->putSym(t.str);
 	Token* token = tokenizer->getToken();
+	match(IDEN);
+	auto iter = clsNames.find(token->str);
+	if (iter != clsNames.end()){
+		tokenizer->error("class redefinition",token,SYMBOLERROR);
+	}
+	int index = clsData->size();
+	clsNames.insert(make_pair(token->str,index));
+	ClsType cls;
+	token = tokenizer->getToken();
 	if (token->type == LPAREN){
 		tokenizer->advance();
 		do{
 			token = tokenizer->getToken();
 			match(IDEN);
-			if (!symTab->isSymExistLocal(t.str)){
+			if (!symTab->isSymExistLocal(token->str)){
 				tokenizer->error("class not found",token,SYMBOLERROR);
 			}
 
 		} while (token->type != RPAREN);
 	}
+	tokenizer->advance();
 	int nParents = 0;
 	symTab = std::make_shared<SymbolTable>(symTab,0);
 
-	byteCodePtr = std::make_shared<ByteCode>(byteCodePtr);
-	this->byteCode = &byteCodePtr->v;
-
-	while (1){
+	match(LBRACE);
+	token = tokenizer->getToken();
+	while (token->type != RBRACE){
 		if (token->type == IDEN){
-			if (symTab->isSymExistLocal(token->str)){
-				std::ostringstream oss;
-				oss << tokenizer->getlinenum() << "Function definition error\n\t" << tokenizer->getlinestr();
-				throw SyntaxError(oss.str());
-			}
-			symTab->putSym(token->str);
-			tokenizer->advance();
-			token = tokenizer->getToken();
-			if (token->type == COMMA){
-				match(COMMA);
-				token = tokenizer->getToken();
-				continue;
-			}
-			else 
-				break;
+			assignStmt();
+		}
+		else if (token->type == FUNCTION){
+			function();
 		}
 		else {
-			std::ostringstream oss;
-			oss << tokenizer->getlinenum() << "\tFunction definition error\n\t" << tokenizer->getlinestr();
-			throw SyntaxError(oss.str());
+			tokenizer->error("syntax error");
 		}
 	}
-	match(RPAREN);
-	match(LBRACE);
+	tokenizer->advance();
+
+	for (auto entry : symTab->map){
+		cls.clsAttrs.insert(make_pair(entry.first, symTab->symVec[entry.second].obj));
+	}
+	symTab = symTab->getNext();
 }
 
 void Parser::match(int type){

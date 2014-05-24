@@ -2,7 +2,7 @@
 #define _PARSER_H_
 #include <vector>
 #include <memory>
-
+#include "Object.h"
 #define WORDSIZE 2
 class SymbolTable;
 typedef std::shared_ptr<SymbolTable> SymPtr;
@@ -42,10 +42,11 @@ struct LoopLabel{
 	LoopLabel(LoopLabelPtr ptr) :next(ptr) {}
 };
 
+
 class Parser{
 public:
-	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp):byteCodePtr(bcp),
-		byteCode(&byteCodePtr->v),stringPoolPtr(sp) {
+	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp,std::vector<clsType> *cls):byteCodePtr(bcp),
+		byteCode(&byteCodePtr->v),stringPoolPtr(sp),clsData(cls) {
 		symTab=tab;
 		tokenizer=t;
 	}
@@ -86,6 +87,9 @@ public:
 	void program();
 	void functioncall();
 
+	int funcArgs(Token* function);
+	void objCall();
+	void newExpr();
 	void classDefinition();
 private:
 	void match(int type);
@@ -97,8 +101,12 @@ private:
 	std::vector<char> *byteCode;
 	Tokenizer *tokenizer;
 	SymPtr symTab;
-	
+	std::vector<ClsType> *clsData;
+	std::map<std::string,int> clsNames;
+	bool isClass;
 	LoopLabelPtr loopLabelPtr;
 };
+
+
 
 #endif

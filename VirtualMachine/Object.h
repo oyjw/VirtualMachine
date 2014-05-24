@@ -4,7 +4,7 @@
 #include <vector>
 
 enum ObjectType{
-	NUMOBJ, STROBJ, FUNOBJ,BOOLOBJ,NILOBJ
+	NUMOBJ, STROBJ, FUNOBJ,BOOLOBJ,NILOBJ, CLSOBJ
 };
 
 struct CollectableObject{
@@ -21,26 +21,16 @@ public:
 	StrObj(const std::string& s):str(s),mark(false) {}
 };
 
+#define NORMALFUNC 0
+#define STATICCLSFUNC 1
+#define CLSFUNC 2
+
 class FunObj {
 public:
 	std::vector<char> bytes;
+	int funType;
 	int nargs;
-	FunObj() {}
-};
-
-class clsType {
-public:
-	std::vector<FunObj> methods;
-	std::vector<std::string> fields;
-	
-	clsType() {}
-};
-
-class clsObj {
-public:
-	clsType *metadata;
-	
-	clsObj() {}
+	FunObj():funType(0),nargs(0) {}
 };
 
 struct Object{
@@ -50,7 +40,30 @@ struct Object{
 		float numval;
 		StrObj* strObj;
 		FunObj* funObj;
+		ClsObj* clsObj;
 	} value;
+};
+
+struct Field{
+	bool isStatic;
+	Object obj;
+};
+
+class ClsType {
+public:
+	std::vector<FunObj> methods;
+	std::map<std::string,std::pair<int,bool>> methodMap; //isStatic
+	std::vector<Object> staticFields;
+	std::map<std::string,std::pair<int,bool>> fieldMap; //isStatic
+	std::unordered_map<std::string,Object> clsAttrs;
+	ClsType() {}
+};
+
+class ClsObj {
+public:
+	ClsType *metadata;
+	std::vector<Object> fields;
+	ClsObj() {}
 };
 
 struct Symbol{

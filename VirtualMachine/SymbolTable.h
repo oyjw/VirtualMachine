@@ -16,8 +16,6 @@ typedef std::pair<bool,int> SymPair;
 
 class SymbolTable{
 private:
-	std::map<std::string, int> map;
-	std::vector<Symbol> symVec;
 	SymPtr next;
 	typedef std::map<std::string, int>::iterator map_iter;
 
@@ -28,6 +26,8 @@ private:
 */
 	
 public:
+	std::map<std::string, int> map;
+	std::vector<Symbol> symVec;
 	bool isGlobal;
 	int nLocalVars;
 	std::vector<Symbol>&& getSymbols(){

@@ -23,6 +23,11 @@ public:
 		}
 		strings = std::move(newvec);
 	}
+	int putStringConstant(const std::string& str){
+		strings.push_back(StrObj(str));
+		constants++;
+		return (int)strings.size()-1;
+	}
 	int putString(const std::string &str){
 		strings.push_back(StrObj(str));
 		return (int)strings.size()-1;

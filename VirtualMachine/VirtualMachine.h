@@ -38,6 +38,7 @@ public:
 	SymPtr symTab;
 	std::shared_ptr<StringPool> stringPoolPtr;
 	ByteCodePtr byteCodePtr;
+	std::vector<clsType> clsData;
 private:
 	void collect();
 	void compute(int opcode);
@@ -49,6 +50,8 @@ private:
 	int top;
 	int nobjs;
 	int threshold;
+
+	
 };
 
 #endif
