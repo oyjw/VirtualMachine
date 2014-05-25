@@ -102,8 +102,10 @@ private:
 	Tokenizer *tokenizer;
 	SymPtr symTab;
 	std::vector<ClsType> *clsData;
-	std::map<std::string,int> clsNames;
+	std::unordered_map<std::string,int> clsNames;
 	bool isClass;
+
+	std::unordered_map<std::string,StrObj*> sharedStrings;
 	LoopLabelPtr loopLabelPtr;
 };
 

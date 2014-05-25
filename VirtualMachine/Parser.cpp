@@ -583,54 +583,29 @@ void Parser::continueStmt(){
 void Parser::objCall(){
 	Token* token = tokenizer->getToken();
 	tokenizer->advance(2);
+	ClsType* cls = NULL;
+	std::unordered_map<std::string,int>::iterator iter;
 	auto p = symTab->findSym(token->str);
 	if (p.second == -1){
-		auto iter = clsNames.find(token->str);
+		iter = clsNames.find(token->str);
 		if (iter == clsNames.end()){
 			tokenizer->error("symbol not found",token,SYMBOLERROR);
 		}
-		ClsType& cls = clsData->at(iter->second);
-		token = tokenizer->getToken();
-		tokenizer->advance();
-		Token* token2 = tokenizer->getToken();
-		if (token2->type == LPAREN){
-			auto iter2 = cls.methodMap.find(token->str);
-			if (iter2 == cls.methodMap.end()){
-				tokenizer->error("method not found",token,SYMBOLERROR);
-			}
-			if (!(iter2->second.second)){
-				tokenizer->error("not static method",token,SYMBOLERROR);
-			}
-			byteCode->push_back((char)GETCLSMETHOD);
-			pushWord(iter->second);
-			byteCode->push_back(iter2->second.first);
-			tokenizer->advance();
-			int nargs = funcArgs(token);
-			match(RPAREN);
-			byteCode->push_back(CALLFUNC);
-			byteCode->push_back((char)nargs);
-		}
-		else {
-			auto iter2 = cls.fieldMap.find(token->str);
-			if (iter2 == cls.fieldMap.end()){
-				tokenizer->error("field not found",token,SYMBOLERROR);
-			}
-			if (!(iter2->second.second)){
-				tokenizer->error("not static field",token,SYMBOLERROR);
-			}
-			byteCode->push_back((char)GETCLSFIELD);
-			pushWord(iter->second);
-			byteCode->push_back(iter2->second.first);
-		}
+		cls = &clsData->at(iter->second);
 	}
-
 	token = tokenizer->getToken();
 	match(IDEN);
 	
 	int index = stringPoolPtr->putStringConstant(token->str);
-	byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
-	pushWord(p.second);
-	byteCode->push_back((char)GETATTR);
+	if(cls == NULL){
+		byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
+		pushWord(p.second);
+		byteCode->push_back((char)GETATTR);
+	}
+	else{
+		byteCode->push_back((char)GETCLSATTR);
+		pushWord(iter->second);
+	}
 	byteCode->push_back((char)index);
 	Token *token2 = tokenizer->getToken();
 	if (token2->type == LPAREN){
