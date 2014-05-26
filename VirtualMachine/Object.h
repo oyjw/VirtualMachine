@@ -32,7 +32,8 @@ public:
 	int nargs;
 	FunObj():funType(0),nargs(0) {}
 };
-
+class ClsType;
+class ClsObj;
 struct Object{
 	ObjectType type;
 	union{
@@ -41,8 +42,23 @@ struct Object{
 		StrObj* strObj;
 		FunObj* funObj;
 		ClsObj* clsObj;
+		ClsType* clsType;
 	} value;
 };
+
+class ClsType {
+public:
+	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
+	ClsType() {}
+};
+
+class ClsObj {
+public:
+	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
+	ClsObj() {}
+};
+
+
 
 #include <cassert>
 namespace std{
@@ -88,18 +104,6 @@ namespace std{
 struct Field{
 	bool isStatic;
 	Object obj;
-};
-
-class ClsType {
-public:
-	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
-	ClsType() {}
-};
-
-class ClsObj {
-public:
-	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
-	ClsObj() {}
 };
 
 struct Symbol{

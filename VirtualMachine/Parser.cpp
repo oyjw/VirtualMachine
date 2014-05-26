@@ -5,7 +5,9 @@
 #include "SymbolTable.h"
 #include "Object.h"
 #include "StringPool.h"
+#include "ObjectPool.h"
 #include <sstream>
+#include <climits>
 
 void Parser::declarations(){
 	match(VAR);
@@ -55,26 +57,48 @@ void Parser::decl(){
 
 void Parser::assignStmt(){
 	Token* token = tokenizer->getToken();
-	std::string var = token->str;
 	tokenizer->advance();
-	match(ASSIGN);
-	int n;
+	Token* token2 = tokenizer->getToken();
+	int n = 0;
 	bool global;
-	std::pair<bool,int> pair= symTab->findSym(var);
-	n=pair.second;
-	global = pair.first;
-	if (!pair.first){
-		SymPtr sp=symTab;
-		while (sp->getNext() != NULL){
-			sp = sp->getNext();
-		}
-		n=sp->putSym(var);
-		global=true;
+	bool objLvalue = false;
+	if (isClass && !isClassFunction){
+		symTab->putSym(token->str);
+		int index = getSharedString(token->str);
+		byteCode->push_back((char)PUSHGLOBAL);
+		pushWord(clsIndex);
+		byteCode->push_back((char)PUSHSTRING);
+		pushWord(index);
 	}
-
+	else {
+		if (token2->type == COLON){
+			objCall(true);
+			objLvalue = true;
+		}
+		else{
+			std::pair<bool,int> pair= symTab->findSym(token->str);
+			n = pair.second;
+			global = pair.first;
+			if (!pair.first){
+				SymPtr sp=symTab;
+				while (sp->getNext() != NULL){
+					sp = sp->getNext();
+				}
+				n=sp->putSym(token->str);
+				global=true;
+			}
+		}
+	}
+	
+	match(ASSIGN);
 	term();
-	byteCode->push_back(char(global ? STOREGLOBAL : STORELOCAL));
-	pushWord(n);
+	if (isClass || objLvalue){
+		byteCode->push_back((char)SETATTR);
+	}
+	else {
+		byteCode->push_back(char(global ? STOREGLOBAL : STORELOCAL));
+		pushWord(n);
+	}
 }
 
 void Parser::term(){
@@ -146,7 +170,7 @@ void Parser::basic(){
 	else if (token->type == IDEN) {
 		Token* nexttoken = tokenizer->getToken(1);
 		if (nexttoken->type == COLON){
-			objCall();
+			objCall(false);
 			return;
 		}
 		if (nexttoken->type == LPAREN){
@@ -261,6 +285,11 @@ void Parser::function(){
 		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
 	}
 	int index = symTab->putSym(token->str);
+	StrObj* strObj = NULL;
+	if (isClass){
+		int sindex = getSharedString(token->str);
+		strObj = stringPoolPtr->getStrObj(sindex);
+	}
 	match(LPAREN);
 	token = tokenizer->getToken();
 	int nargs = 0;
@@ -301,7 +330,12 @@ void Parser::function(){
 	objectHolder.type = FUNOBJ;
 	objectHolder.value.funObj = obj;
 	symTab = symTab->getNext();
-	symTab->putObj(index , objectHolder);
+	if (isClass){
+		assert(strObj != NULL);
+		curClsType->clsAttrs.insert(std::make_pair(strObj, objectHolder));
+	}
+	else 
+		symTab->putObj(index , objectHolder);
 	
 	byteCodePtr = byteCodePtr->getNext();
 	this->byteCode = &byteCodePtr->v;
@@ -580,67 +614,77 @@ void Parser::continueStmt(){
 	pushWord(0);
 }
 
-void Parser::objCall(){
+int Parser::getSharedString(const std::string& str){
+	auto iter = sharedStrings.find(str);
+	int index = 0;
+	if (iter == sharedStrings.end()){
+		index = stringPoolPtr->putStringConstant(str);
+		sharedStrings.insert(std::make_pair(str,index));
+	}
+	else
+		index = iter->second;
+	assert(index>=0 && index<=SHRT_MAX);
+	return index;
+}
+
+void Parser::objCall(bool isLvalue){
 	Token* token = tokenizer->getToken();
 	tokenizer->advance(2);
-	ClsType* cls = NULL;
-	std::unordered_map<std::string,int>::iterator iter;
 	auto p = symTab->findSym(token->str);
 	if (p.second == -1){
-		iter = clsNames.find(token->str);
-		if (iter == clsNames.end()){
-			tokenizer->error("symbol not found",token,SYMBOLERROR);
-		}
-		cls = &clsData->at(iter->second);
+		tokenizer->error("symbol not found",token,SYMBOLERROR);
 	}
 	token = tokenizer->getToken();
 	match(IDEN);
+	int index = getSharedString(token->str);
+	byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
+	pushWord(p.second);
 	
-	int index = stringPoolPtr->putStringConstant(token->str);
-	if(cls == NULL){
-		byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
-		pushWord(p.second);
-		byteCode->push_back((char)GETATTR);
-	}
-	else{
-		byteCode->push_back((char)GETCLSATTR);
-		pushWord(iter->second);
-	}
-	byteCode->push_back((char)index);
+	byteCode->push_back((char)PUSHSTRING);
+	pushWord(index);
+	if (isLvalue)
+		return;
+	byteCode->push_back((char)GETATTR);
 	Token *token2 = tokenizer->getToken();
 	if (token2->type == LPAREN){
+		byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
+		byteCode->push_back((char)p.second);
 		tokenizer->advance();
 		int nargs = funcArgs(token);
 		match(RPAREN);
 		byteCode->push_back(CALLFUNC);
 		byteCode->push_back((char)nargs);
 	}
-
 }
 
 
 void Parser::newExpr(){
 	tokenizer->advance();
 	Token* token = tokenizer->getToken();
-	auto iter = clsNames.find(token->str);
-	if (iter == clsNames.end()){
+	auto p = symTab->findSym(token->str);
+	if (p.second == -1){
 		tokenizer->error("class not found",token,SYMBOLERROR);
 	}
 	byteCode->push_back((char)CREATEOBJ);
-	pushWord(iter->second);
+	pushWord(p.second);
 }
 
 void Parser::classDefinition(){
 	match(CLASS);
 	Token* token = tokenizer->getToken();
 	match(IDEN);
-	auto iter = clsNames.find(token->str);
-	if (iter != clsNames.end()){
-		tokenizer->error("class redefinition",token,SYMBOLERROR);
+	if (symTab->isSymExistLocal(token->str)){
+		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
 	}
-	int index = clsData->size();
-	clsNames.insert(make_pair(token->str,index));
-	ClsType cls;
+	int index = symTab->putSym(token->str);
+	ClsType *cls = new ClsType;
+	objectPoolPtr->putCls((void*)cls);
+	curClsType = cls;
+	isClass = true;
+	Object object = { CLSTYPE, cls };
+	symTab->putObj(index,object);
+	clsIndex = index;
+
 	token = tokenizer->getToken();
 	if (token->type == LPAREN){
 		tokenizer->advance();
@@ -650,11 +694,9 @@ void Parser::classDefinition(){
 			if (!symTab->isSymExistLocal(token->str)){
 				tokenizer->error("class not found",token,SYMBOLERROR);
 			}
-
 		} while (token->type != RPAREN);
 	}
 	tokenizer->advance();
-	int nParents = 0;
 	symTab = std::make_shared<SymbolTable>(symTab,0);
 
 	match(LBRACE);
@@ -662,20 +704,23 @@ void Parser::classDefinition(){
 	while (token->type != RBRACE){
 		if (token->type == IDEN){
 			assignStmt();
+			match(SEMICOLON);
 		}
 		else if (token->type == FUNCTION){
+			isClassFunction = true;
 			function();
+			isClassFunction = false;
 		}
 		else {
 			tokenizer->error("syntax error");
 		}
+		token = tokenizer->getToken();
 	}
 	tokenizer->advance();
-
-	for (auto entry : symTab->map){
-		cls.clsAttrs.insert(make_pair(entry.first, symTab->symVec[entry.second].obj));
-	}
 	symTab = symTab->getNext();
+
+	curClsType = NULL;
+	isClass = false;
 }
 
 void Parser::match(int type){
@@ -689,7 +734,7 @@ void Parser::match(int type){
 
 void Parser::pushWord(int n){
 	CodeWord code;
-	code.word = (unsigned short)n;
+	code.word = (short)n;
 	byteCode->push_back(code.c.c1);
 	byteCode->push_back(code.c.c2);
 }

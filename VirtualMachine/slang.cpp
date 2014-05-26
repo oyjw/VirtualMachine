@@ -32,7 +32,7 @@ Object funcall(void* state, const char* name, int len, Object* object){
 void parseFile(void* state, const char* fileName){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	Tokenizer* tokenizer = new Tokenizer(fileName);
-	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,vm->byteCodePtr,vm->clsData);
+	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,vm->byteCodePtr,vm->objectPoolPtr);
 	parser->program();
 	vm->run();
 }

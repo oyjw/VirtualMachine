@@ -6,8 +6,10 @@
 #define WORDSIZE 2
 class SymbolTable;
 typedef std::shared_ptr<SymbolTable> SymPtr;
+struct Token;
 
 class Tokenizer;
+class ObjectPool;
 class StringPool;
 class ByteCode;
 typedef std::shared_ptr<ByteCode> ByteCodePtr;
@@ -45,8 +47,8 @@ struct LoopLabel{
 
 class Parser{
 public:
-	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp,std::vector<clsType> *cls):byteCodePtr(bcp),
-		byteCode(&byteCodePtr->v),stringPoolPtr(sp),clsData(cls) {
+	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp,std::shared_ptr<ObjectPool> op):byteCodePtr(bcp),
+		byteCode(&byteCodePtr->v),stringPoolPtr(sp),curClsType(NULL),isClass(false),isClassFunction(false),clsIndex(0),objectPoolPtr(op) {
 		symTab=tab;
 		tokenizer=t;
 	}
@@ -88,10 +90,11 @@ public:
 	void functioncall();
 
 	int funcArgs(Token* function);
-	void objCall();
+	void objCall(bool isLvalue);
 	void newExpr();
 	void classDefinition();
 private:
+	int getSharedString(const std::string& string);
 	void match(int type);
 	void pushWord(int n);
 	void setWord(std::vector<char>::size_type pos,int n);
@@ -101,11 +104,14 @@ private:
 	std::vector<char> *byteCode;
 	Tokenizer *tokenizer;
 	SymPtr symTab;
-	std::vector<ClsType> *clsData;
-	std::unordered_map<std::string,int> clsNames;
+	//std::vector<ClsType> *clsData;
+	ClsType* curClsType;
 	bool isClass;
+	bool isClassFunction;
+	size_t clsIndex;
 
-	std::unordered_map<std::string,StrObj*> sharedStrings;
+	std::shared_ptr<ObjectPool> objectPoolPtr;
+	std::unordered_map<std::string,int> sharedStrings;
 	LoopLabelPtr loopLabelPtr;
 };
 

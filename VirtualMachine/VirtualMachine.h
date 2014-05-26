@@ -38,7 +38,7 @@ public:
 	SymPtr symTab;
 	std::shared_ptr<StringPool> stringPoolPtr;
 	ByteCodePtr byteCodePtr;
-	std::vector<clsType> clsData;
+	std::shared_ptr<ObjectPool> objectPoolPtr;
 private:
 	void collect();
 	void compute(int opcode);
