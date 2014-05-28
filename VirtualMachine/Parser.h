@@ -94,7 +94,10 @@ public:
 	void newExpr();
 	void classDefinition();
 private:
-	int getSharedString(const std::string& string);
+	int addSymbol(Token* token);
+	std::pair<bool,int> parseIdentifier(Token* token);
+	int getSymbolIndex(const std::string& str);
+	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);
 	void setWord(std::vector<char>::size_type pos,int n);

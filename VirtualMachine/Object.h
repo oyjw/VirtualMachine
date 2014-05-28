@@ -4,7 +4,7 @@
 #include <vector>
 #include <unordered_map>
 enum ObjectType{
-	NUMOBJ, STROBJ, FUNOBJ,BOOLOBJ,NILOBJ, CLSOBJ, CLSTYPE
+	NUMOBJ, STROBJ, FUNOBJ, CFUNOBJ, BOOLOBJ,NILOBJ, CLSOBJ, CLSTYPE
 };
 
 
@@ -29,11 +29,15 @@ class FunObj {
 public:
 	std::vector<char> bytes;
 	int funType;
-	int nargs;
-	FunObj():funType(0),nargs(0) {}
+	int nArgs;
+	FunObj():funType(0),nArgs(0) {}
 };
 class ClsType;
 class ClsObj;
+
+struct Object;
+typedef Object (*cFunc)(void* state);
+
 struct Object{
 	ObjectType type;
 	union{
@@ -41,6 +45,7 @@ struct Object{
 		float numval;
 		StrObj* strObj;
 		FunObj* funObj;
+		cFunc cFunObj;
 		ClsObj* clsObj;
 		ClsType* clsType;
 	} value;

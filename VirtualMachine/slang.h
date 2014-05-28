@@ -1,13 +1,14 @@
 #ifndef _SLANG_H_
 #define _SLANG_H_
 
+
+#include "Object.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void* newstate();
-void pushstring(void* state,char* str);
-void pushnumber(void* state,float num);
+#define SYMBOLEXIST 1
+int defineMethod(void* state,cFunc func);
+void* newState();
 void parseFile(void* state, const char* fileName);
 
 

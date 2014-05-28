@@ -14,40 +14,40 @@
 #include <iostream>
 
 
-VirtualMachine::VirtualMachine():threshold(100),top(0),symTab(new SymbolTable),byteCodePtr(new ByteCode),stringPoolPtr(new StringPool) {}
+VirtualMachine::VirtualMachine():threshold(100),top(0),symTab(new SymbolTable),byteCodePtr(new ByteCode),
+	stringPoolPtr(new StringPool) {}
 
-void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
-	size_t pos = 0;
-	while (pos <byteCodes.size()){
-		switch (byteCodes[pos++]){
+int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCodePos){
+	while (byteCodePos <byteCodes.size()){
+		switch (byteCodes[byteCodePos++]){
 			case PUSHLOCAL:{
-				int n = getWord(byteCodes,pos);
+				int n = getWord(byteCodes,byteCodePos);
 				stack.push_back(stack[base + n]);
 				top++;
 				break;
 			}
 			case PUSHGLOBAL:{			
-				int n = getWord(byteCodes,pos);
+				int n = getWord(byteCodes,byteCodePos);
 				stack.push_back(symTab->getObj(n));
 				top++;
 				break;
 			}
 			case STORELOCAL:{
-				int n = getWord(byteCodes,pos);
+				int n = getWord(byteCodes,byteCodePos);
 				stack[base + n] = stack[top-1];
 				top--;
 				stack.resize(top);
 				break;
 			}
 			case STOREGLOBAL:{
-				int n = getWord(byteCodes,pos);
+				int n = getWord(byteCodes,byteCodePos);
 				symTab->putObj(n,stack[top-1]);
 				top--;
 				stack.resize(top);
 				break;
 			}
 			case PUSHREAL:{
-				float f = getFloat(byteCodes,pos);
+				float f = getFloat(byteCodes,byteCodePos);
 				Object obj;
 				obj.type=NUMOBJ;
 				obj.value.numval=f;
@@ -56,7 +56,7 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 				break;
 			}
 			case PUSHSTRING:{
-				int index = getWord(byteCodes,pos);
+				int index = getWord(byteCodes,byteCodePos);
 				Object obj;
 				obj.type = STROBJ;
 				obj.value.strObj = stringPoolPtr->getStrObj(index);
@@ -142,7 +142,7 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			}
 			case OP_NOT:{
 				Object& obj=stack[top-1];
-				int steps = getWord(byteCodes,pos);
+				int steps = getWord(byteCodes,byteCodePos);
 				if (obj.type == NUMOBJ && obj.value.numval==0  ||  obj.type==NILOBJ  ||
 					obj.type == BOOLOBJ && obj.value.boolval==false){
 					obj.value.boolval = true;
@@ -154,23 +154,23 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 				break;
 			}
 			case JMP:{
-				int steps = getWord(byteCodes,pos);
-				pos+=steps;		
+				int steps = getWord(byteCodes,byteCodePos);
+				byteCodePos+=steps;		
 				break;
 			}
 			case JMPIFF:{
 				Object& obj=stack[top-1];
-				int steps = getWord(byteCodes,pos);
+				int steps = getWord(byteCodes,byteCodePos);
 				if (obj.type == NUMOBJ && obj.value.numval==0  ||  obj.type==NILOBJ  ||
 					obj.type == BOOLOBJ && obj.value.boolval==false){
-					pos+=steps;	
+					byteCodePos+=steps;	
 				}		
 				top--;
 				stack.resize(top);
 				break;
 			}
 			case ADJUST:{
-				int nDecls = byteCodes[pos++];
+				int nDecls = byteCodes[byteCodePos++];
 				top = top+nDecls;
 				if (nDecls > 0){
 					Object obj={NILOBJ,0};
@@ -184,20 +184,26 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 				break;
 			}
 			case CALLFUNC:{
-				int nargs = byteCodes[pos++];
+				int nargs = byteCodes[byteCodePos++];
 				Object &obj = stack[ top - nargs - 1 ];
 				int newBase = top - nargs;
-				assert(obj.type == FUNOBJ);
-				execute(obj.value.funObj->bytes,newBase);
-				/*top = newBase - 1;
-				stack.resize(top);*/
+				if (obj.type == FUNOBJ){
+					int nResult = execute(obj.value.funObj->bytes, newBase, 0);
+					top = nResult? newBase: newBase - 1;
+					stack.resize(top);
+				}
+				else if (obj.type == CFUNOBJ){
+					
+				}
+				else assert(0);
 				break;
 			}
 			case RETCODE:{
 				stack[base - 1] = stack[top-1];
-				top=base;
-				stack.resize(top);
-				return ;
+				return 1;
+			}
+			case RET0:{
+				return 0;
 			}
 			case PRINTFUNC:{
 				Object& obj = stack[top-1];
@@ -211,7 +217,7 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 				break;
 			}
 			case CREATEOBJ:{
-				int index = getWord(byteCodes,pos);
+				int index = getWord(byteCodes,byteCodePos);
 				Object &objType = symTab->getObj(index);
 				if (objType.type != CLSTYPE){
 					throw std::runtime_error("");
@@ -266,6 +272,7 @@ void VirtualMachine::execute(std::vector<char>& byteCodes,int base){
 			default:assert(0);
 		}
 	}
+	return 0;
 }
 
 void VirtualMachine::compute(int opcode){
@@ -319,136 +326,137 @@ void VirtualMachine::collect(){
 }
 
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
-	size_t pos = 0;
-	while (pos <byteCodes.size()){
-		switch (byteCodes[pos++]){
+	size_t byteCodePos = 0;
+	while (byteCodePos <byteCodes.size()){
+		switch (byteCodes[byteCodePos++]){
 			case PUSHLOCAL:{
-				ofs << pos-1 ;
-				int n = getWord(byteCodes,pos);
+				ofs << byteCodePos-1 ;
+				int n = getWord(byteCodes,byteCodePos);
 				ofs << "\tPUSHLOCAL\t" << n <<std::endl;
 				break;
 			}
 			case PUSHGLOBAL:{
-				ofs << pos-1;
-				int n = getWord(byteCodes,pos);
+				ofs << byteCodePos-1;
+				int n = getWord(byteCodes,byteCodePos);
 				ofs << "\tPUSHGLOBAL\t" << n << std::endl;
 				break;
 			}
 			case STORELOCAL:{
-				ofs << pos-1;
-				int n = getWord(byteCodes,pos);
+				ofs << byteCodePos-1;
+				int n = getWord(byteCodes,byteCodePos);
 				ofs << "\tSTORELOCAL\t" << n << std::endl;
 				break;
 			}
 			case STOREGLOBAL:{
-				ofs << pos-1;
-				int n = getWord(byteCodes,pos);
+				ofs << byteCodePos-1;
+				int n = getWord(byteCodes,byteCodePos);
 				ofs << "\tSTOREGLOBAL\t" << n << std::endl;
 				break;
 			}
 			case PUSHREAL:{
-				ofs << pos-1;
-				float f = getFloat(byteCodes,pos);
+				ofs << byteCodePos-1;
+				float f = getFloat(byteCodes,byteCodePos);
 				ofs << "\tPUSHREAL\t" << f << std::endl;
 				break;
 			}
 			case OP_ADD:{
-				ofs << pos-1 << "\tOP_ADD\t" << std::endl;
+				ofs << byteCodePos-1 << "\tOP_ADD\t" << std::endl;
 				break;
 			}
 			case OP_SUB:{
-				ofs << pos-1 << "\tOP_SUB\t" << std::endl;
+				ofs << byteCodePos-1 << "\tOP_SUB\t" << std::endl;
 				break;
 			}
 			case OP_MUL:{
-				ofs << pos-1 << "\tOP_MUL\t" << std::endl;
+				ofs << byteCodePos-1 << "\tOP_MUL\t" << std::endl;
 				break;
 			}
 
 			case OP_DIV:{
-				ofs << pos-1 << "\tOP_DIV\t" << std::endl;
+				ofs << byteCodePos-1 << "\tOP_DIV\t" << std::endl;
 				break;
 			}
 			case OP_EQ:{
-				ofs << pos-1 << "\tOP_EQ\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_EQ\t"  <<std::endl;
 				break;
 			}
 			case OP_NOTEQ:{
-				ofs << pos-1 << "\tOP_NOTEQ\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_NOTEQ\t"  <<std::endl;
 				break;
 			}
 			case OP_LT:{		
-				ofs << pos-1 << "\tOP_LT\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_LT\t"  <<std::endl;
 				break;
 			}
 			case OP_GT:{
-				ofs << pos-1 << "\tOP_GT\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_GT\t"  <<std::endl;
 				break;
 			}
 			case OP_LE:{
-				ofs << pos-1 << "\tOP_LE\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_LE\t"  <<std::endl;
 				break;
 			}
 			case OP_GE:{
-				ofs << pos-1 << "\tOP_GE\t"  <<std::endl;
+				ofs << byteCodePos-1 << "\tOP_GE\t"  <<std::endl;
 				break;
 			}
 			case OP_NOT:{
-				ofs << pos-1 << "\tOP_NOT\t"  <<std::endl;	
+				ofs << byteCodePos-1 << "\tOP_NOT\t"  <<std::endl;	
 				break;
 			}
 			case JMP:{
-				ofs << pos-1;
-				int steps = getWord(byteCodes,pos);
+				ofs << byteCodePos-1;
+				int steps = getWord(byteCodes,byteCodePos);
 				ofs << "\tJMP\t" << steps <<std::endl;			
 				break;
 			}
 			case JMPIFF:{
-				ofs << pos-1;
-				int steps = getWord(byteCodes,pos);
+				ofs << byteCodePos-1;
+				int steps = getWord(byteCodes,byteCodePos);
 				ofs << "\tJMPIFF\t" << steps <<std::endl;			
 				break;
 			}
 			case ADJUST:{
-				ofs << pos-1;
-				int nDecls = byteCodes[pos++];
+				ofs << byteCodePos-1;
+				int nDecls = byteCodes[byteCodePos++];
 				ofs << "\tADJUST\t" << nDecls <<std::endl;			
 				break;
 			}
 			case CALLFUNC:{
-				ofs << pos-1;
-				int nargs = byteCodes[pos++];
+				ofs << byteCodePos-1;
+				int nargs = byteCodes[byteCodePos++];
 				ofs << "\tCALLFUNC\t" << nargs <<std::endl;			
 				break;
 			}
 			case RETCODE:{
-				ofs << pos-1 << "\tRETCODE\t" <<std::endl;
+				ofs << byteCodePos-1 << "\tRETCODE\t" <<std::endl;
 				break;
 			}
 			case PRINTFUNC:{
-				ofs << pos-1 << "\tPRINT\t"  << std::endl;
+				ofs << byteCodePos-1 << "\tPRINT\t"  << std::endl;
 				break;
 			}
 			case CREATEOBJ:{
-				int index = getWord(byteCodes,pos);
-				ofs << pos-1 << "\tCREATEOBJ\t"  << index << std::endl;
+				int index = getWord(byteCodes,byteCodePos);
+				ofs << byteCodePos-1 << "\tCREATEOBJ\t"  << index << std::endl;
 				break;
 			}
 			case GETATTR:{
-				ofs << pos-1 << "\tGETATTR\t"  << std::endl;
+				ofs << byteCodePos-1 << "\tGETATTR\t"  << std::endl;
 				break;
 			}
 			case SETATTR:{
-				ofs << pos-1 << "\tSETATTR\t"  << std::endl;
+				ofs << byteCodePos-1 << "\tSETATTR\t"  << std::endl;
 				break;
 			}
 			default:assert(0);
 			}
 	}
+	return 0;
 }
 
 void VirtualMachine::run(){
-	execute(byteCodePtr->v,0);
+	execute(byteCodePtr->v, 0, 0);
 }
 
 void VirtualMachine::run(const std::string& fileName) {
@@ -473,19 +481,19 @@ void VirtualMachine::run(const std::string& fileName) {
 	}
 }
 
-int VirtualMachine::getWord(std::vector<char>& byteCode ,size_t &pos){
+int VirtualMachine::getWord(std::vector<char>& byteCode ,size_t &byteCodePos){
 	CodeWord code;
-	code.c.c1 = byteCode[pos++];
-	code.c.c2 = byteCode[pos++];
+	code.c.c1 = byteCode[byteCodePos++];
+	code.c.c2 = byteCode[byteCodePos++];
 	return code.word;
 }
 
-float VirtualMachine::getFloat(std::vector<char>& byteCode ,size_t &pos){
+float VirtualMachine::getFloat(std::vector<char>& byteCode ,size_t &byteCodePos){
 	CodeFloat code;
-	code.c.c1 = byteCode[pos++];
-	code.c.c2 = byteCode[pos++];
-	code.c.c3 = byteCode[pos++];
-	code.c.c4 = byteCode[pos++];
+	code.c.c1 = byteCode[byteCodePos++];
+	code.c.c2 = byteCode[byteCodePos++];
+	code.c.c3 = byteCode[byteCodePos++];
+	code.c.c4 = byteCode[byteCodePos++];
 	return code.f;
 }
 

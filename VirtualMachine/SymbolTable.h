@@ -74,7 +74,6 @@ public:
 		return std::make_pair(false,-1);
 	}
 	
-
 	int putSym(const std::string& symbol){
 		Object obj = {NILOBJ,0};
 		symVec.push_back({ obj, symbol });
@@ -82,6 +81,7 @@ public:
 		map.insert(make_pair(symbol, n));
 		return n;
 	}
+
 	Object& getObj(int idx){
 		return symVec[idx].obj;
 	}

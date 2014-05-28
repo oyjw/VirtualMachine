@@ -18,11 +18,10 @@ class VirtualMachine
 {
 public:
 	VirtualMachine();
-	VirtualMachine(std::vector<char>& b, SymPtr g,std::shared_ptr<StringPool> sp):symTab(g), top(0) ,stringPoolPtr(sp),threshold(100) {}
 	~VirtualMachine() {}
 	VirtualMachine(const VirtualMachine&) = delete;
 	VirtualMachine& operator=(const VirtualMachine&) = delete;
-	void execute(std::vector<char> &byteCodes,int base);
+	int execute(std::vector<char> &byteCodes, int base, size_t byteCodePos);
 	void dump(std::vector<char> &byteCodes, std::ofstream& ofs);
 	void run();
 	void run(const std::string& fileName);
@@ -46,12 +45,11 @@ private:
 	int getWord(std::vector<char>& byteCode ,size_t &pos);
 	float getFloat(std::vector<char>& byteCode ,size_t &pos);
 	std::vector<Object> stack;
-	int base;
 	int top;
+	size_t pos;
 	int nobjs;
 	int threshold;
 
-	
 };
 
 #endif

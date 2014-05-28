@@ -9,6 +9,28 @@
 #include <sstream>
 #include <climits>
 
+int Parser::addSymbol(Token* token){
+	if (symTab->isSymExistLocal(token->str)){
+		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
+	}
+	return symTab->putSym(token->str);
+}
+
+int Parser::getSymbolIndex(const std::string& str){
+
+	return 0;
+}
+
+std::pair<bool,int> Parser::parseIdentifier(Token* token){
+	auto pair = symTab->findSym(token->str);
+	if (pair.second == -1){
+		tokenizer->error("Unknown symbol",token,SYMBOLERROR);
+	}
+	byteCode->push_back(char(pair.first ? PUSHGLOBAL : PUSHLOCAL));
+	pushWord(pair.second);
+	return pair;
+}
+
 void Parser::declarations(){
 	match(VAR);
 	std::vector<char>::size_type pos=0;
@@ -41,10 +63,7 @@ int Parser::declList(){
 void Parser::decl(){
 	Token* token = tokenizer->getToken();
 	match(IDEN);
-	if (symTab->isSymExistLocal(token->str)){
-		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
-	}
-	int n=symTab->putSym(token->str);
+	int n = addSymbol(token);
 	n += symTab->nLocalVars;
 	token = tokenizer->getToken();
 	if (token->type!=ASSIGN)
@@ -63,7 +82,7 @@ void Parser::assignStmt(){
 	bool global;
 	bool objLvalue = false;
 	if (isClass && !isClassFunction){
-		symTab->putSym(token->str);
+		addSymbol(token);
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHGLOBAL);
 		pushWord(clsIndex);
@@ -177,22 +196,16 @@ void Parser::basic(){
 			functioncall();
 			return;
 		}
-		auto pair = symTab->findSym(token->str);
-		if (pair.second == -1){
-			tokenizer->error("Symbol not found",token,SYMBOLERROR);
-		}
-		byteCode->push_back(char(pair.first ? PUSHGLOBAL : PUSHLOCAL));
-		pushWord(pair.second);
+		parseIdentifier(token);
 		tokenizer->advance();
 	}
 	else if (token->type == LPAREN){
 		tokenizer->advance();
 		term();
 		match(RPAREN);
-		tokenizer->advance();
 	}
 	else if (token->type == STRING){
-		int index = stringPoolPtr->putString(token->str);
+		int index = getSharedString(token->str);
 		byteCode->push_back(PUSHSTRING);
 		pushWord(index);
 		tokenizer->advance();
@@ -271,8 +284,14 @@ void Parser::printStmt(){
 
 void Parser::returnStmt(){
 	tokenizer->advance();
-	term();
-	byteCode->push_back(RETCODE);
+	Token *token = tokenizer->getToken();
+	if (token->type == SEMICOLON){
+		byteCode->push_back(RET0);
+	}
+	else {
+		term(); 
+		byteCode->push_back(RETCODE);
+	}
 }
 
 
@@ -281,10 +300,7 @@ void Parser::function(){
 	Token *token = tokenizer->getToken();
 	match(IDEN);
 	
-	if (symTab->isSymExistLocal(token->str)){
-		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
-	}
-	int index = symTab->putSym(token->str);
+	int index = addSymbol(token);
 	StrObj* strObj = NULL;
 	if (isClass){
 		int sindex = getSharedString(token->str);
@@ -292,21 +308,18 @@ void Parser::function(){
 	}
 	match(LPAREN);
 	token = tokenizer->getToken();
-	int nargs = 0;
+	int nArgs = 0;
 	symTab = std::make_shared<SymbolTable>(symTab,0);
 
 	byteCodePtr = std::make_shared<ByteCode>(byteCodePtr);
 	this->byteCode = &byteCodePtr->v;
 
 	while (token->type == IDEN){
-		if (nargs > 16){
+		if (nArgs > 16){
 			tokenizer->error("too many parameters");
 		}
-		if (symTab->isSymExistLocal(token->str)){
-			tokenizer->error("symbol redifinition",token,SYMBOLERROR);
-		}
-		symTab->putSym(token->str);
-		nargs++;
+		addSymbol(token);
+		nArgs++;
 		tokenizer->advance();
 		token = tokenizer->getToken();
 		if (token->type != COMMA){
@@ -324,7 +337,7 @@ void Parser::function(){
 	}
 	tokenizer->advance();
 	FunObj *obj = new FunObj;
-	obj->nargs = nargs;
+	obj->nArgs = nArgs;
 	obj->bytes = std::move(byteCodePtr->v);
 	Object objectHolder;
 	objectHolder.type = FUNOBJ;
@@ -343,39 +356,26 @@ void Parser::function(){
 
 void Parser::functioncall(){
 	Token* token = tokenizer->getToken();
-	Token* function = token;
-	SymPtr sp=symTab;
-	while (sp->getNext() != NULL){
-		sp = sp->getNext();
-	}
-	
-	auto p = sp->findSym(token->str);
-	if (p.second == -1){
-		tokenizer->error("unknown symbol", function, SYMBOLERROR);
-	}
-	assert(p.first);
-	byteCode->push_back(PUSHGLOBAL);
-	pushWord(p.second);
-
+	parseIdentifier(token);
 	tokenizer->advance();
 	match(LPAREN);
-	int nargs=funcArgs(function);
+	int nArgs=funcArgs(token);
 	
 	match(RPAREN);
 	byteCode->push_back((char)CALLFUNC);
-	byteCode->push_back((char)nargs);
+	byteCode->push_back((char)nArgs);
 }
 
 int Parser::funcArgs(Token* function){
-	int nargs=0;
+	int nArgs=0;
 	Token* token = tokenizer->getToken();
 	if (token->type!=RPAREN){
 		while(1){
-			if (nargs > 16){
+			if (nArgs > 16){
 				tokenizer->error("too many arguments", function);
 			}
 			term();
-			nargs++;
+			nArgs++;
 			token = tokenizer->getToken();
 			if(token->type!=COMMA)
 				break;
@@ -383,7 +383,7 @@ int Parser::funcArgs(Token* function){
 			token = tokenizer->getToken();
 		}
 	}
-	return nargs;
+	return nArgs;
 }
 void Parser::stmts(){
 	Token* token = tokenizer->getToken();
@@ -600,7 +600,6 @@ void Parser::whileStmt(){
 
 void Parser::breakStmt(){
 	match(BREAK);
-	match(SEMICOLON);
 	byteCode->push_back(JMP);
 	loopLabelPtr->breaks.push_back(byteCode->size());
 	pushWord(0);
@@ -608,7 +607,6 @@ void Parser::breakStmt(){
 
 void Parser::continueStmt(){
 	match(CONTINUE);
-	match(SEMICOLON);
 	byteCode->push_back(JMP);
 	loopLabelPtr->continues.push_back(byteCode->size());
 	pushWord(0);
@@ -629,17 +627,12 @@ int Parser::getSharedString(const std::string& str){
 
 void Parser::objCall(bool isLvalue){
 	Token* token = tokenizer->getToken();
+	auto p = parseIdentifier(token);
 	tokenizer->advance(2);
-	auto p = symTab->findSym(token->str);
-	if (p.second == -1){
-		tokenizer->error("symbol not found",token,SYMBOLERROR);
-	}
+	
 	token = tokenizer->getToken();
 	match(IDEN);
 	int index = getSharedString(token->str);
-	byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
-	pushWord(p.second);
-	
 	byteCode->push_back((char)PUSHSTRING);
 	pushWord(index);
 	if (isLvalue)
@@ -650,10 +643,10 @@ void Parser::objCall(bool isLvalue){
 		byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
 		byteCode->push_back((char)p.second);
 		tokenizer->advance();
-		int nargs = funcArgs(token);
+		int nArgs = funcArgs(token);
 		match(RPAREN);
 		byteCode->push_back(CALLFUNC);
-		byteCode->push_back((char)nargs);
+		byteCode->push_back((char)nArgs);
 	}
 }
 
