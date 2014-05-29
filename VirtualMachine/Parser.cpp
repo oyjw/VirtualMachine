@@ -403,22 +403,12 @@ void Parser::stmts(){
 
 void Parser::ifStmt(){
 	tokenizer->advance();
-	LabelList orLabel;
-	LabelList andLabel;
 	match(LPAREN);
-	orExpr(orLabel,andLabel);
+	orExpr();
 	match(RPAREN);
-	byteCode->push_back((char)JMP);
+	byteCode->push_back((char)JMPIFF);
 	size_t pos = byteCode->size();
 	pushWord(0);
-
-	for (auto& p : andLabel){
-		setWord(p.first,p.second);
-	}
-
-	for (auto& i : orLabel){
-		setWord(i.first, byteCode->size()-i.first-WORDSIZE);
-	}
 
 	symTab = std::make_shared<SymbolTable>(symTab,symTab->isGlobal?0:symTab->getLocalVars());
 	stmts();
@@ -445,76 +435,51 @@ void Parser::ifStmt(){
 	symTab = symTab->getNext();
 }
 
-void Parser::orExpr(LabelList& orLabel,LabelList& andLabel){
-	andExpr(orLabel,andLabel);
-	orExpr2(orLabel,andLabel);
+void Parser::orExpr(){
+	andExpr();
+	orExpr2();
 }
 
-void Parser::orExpr2(LabelList& orLabel,LabelList& andLabel){
+void Parser::orExpr2(){
 	Token* token = tokenizer->getToken();
 	if (token->type == OR){
-		match(OR);
-		andExpr(orLabel,andLabel);
-		orExpr2(orLabel,andLabel);
+		tokenizer->advance();
+		andExpr();
+		byteCode->push_back((char)OP_OR);
+		orExpr2();
 	}
 }
 
-void Parser::andExpr(LabelList& orLabel,LabelList& andLabel){
-	LabelList andLabel2;
-	notExpr(orLabel,andLabel2,false);
-	andExpr2(orLabel,andLabel2);
-	byteCode->push_back(JMP);
-	orLabel.push_back(std::make_pair(byteCode->size(),0));
-	pushWord(0);
-	for (auto& i : andLabel2){
-		i.second = byteCode->size()-i.first-WORDSIZE;
-		andLabel.push_back(i);
-	}
+void Parser::andExpr(){
+	notExpr(false);
+	andExpr2();
 }
 
-void Parser::andExpr2(LabelList& orLabel,LabelList& andLabel){
+void Parser::andExpr2(){
 	Token* token = tokenizer->getToken();
 	if (token->type == AND){
-		match(AND);
-		notExpr(orLabel,andLabel,false);
-		andExpr2(orLabel,andLabel);
+		tokenizer->advance();
+		notExpr(false);
+		byteCode->push_back((char)OP_AND);
+		andExpr2();
 	}
 }
 
-void Parser::notExpr(LabelList& orLabel,LabelList& andLabel,bool notFlag){
+void Parser::notExpr(bool notFlag){
 	Token* token = tokenizer->getToken();
 	if (token->type == NOT){
-		match(NOT);
+		tokenizer->advance();
 		notFlag = notFlag? false:true;
 	}
 	token = tokenizer->getToken();
 	if (token->type == NOT){
-		notExpr(orLabel,andLabel,notFlag);
+		notExpr(notFlag);
 	}
 	else if (token->type == LPAREN){
 		match(LPAREN);
-		LabelList orLabel2;
-		LabelList andLabel2;
-		orExpr(orLabel2,andLabel2);
-		
-		if(!notFlag){
-			for (auto& p : andLabel2){
-				setWord(p.first,p.second);
-			}
-			byteCode->push_back(JMP);
-			andLabel.push_back(std::make_pair(byteCode->size(),0));
-			pushWord(0);
-			for (auto& p : orLabel2){
-				setWord(p.first,byteCode->size()-p.first-WORDSIZE);
-			}
-		}
-		else{
-			for (auto& p : andLabel2){
-				setWord(p.first,p.second);
-			}
-			for (auto& p : orLabel2){
-				andLabel.push_back(p);
-			}
+		orExpr();
+		if(notFlag){
+			byteCode->push_back(OP_NOT);
 		}
 		match(RPAREN);
 	}
@@ -523,10 +488,6 @@ void Parser::notExpr(LabelList& orLabel,LabelList& andLabel,bool notFlag){
 		if(notFlag){
 			byteCode->push_back(OP_NOT);
 		}
-		byteCode->push_back(JMPIFF);
-		andLabel.push_back(std::make_pair(byteCode->size(),0));
-		pushWord(0);
-		
 	}
 }
 
@@ -561,22 +522,12 @@ void Parser::whileStmt(){
 		loopLabelPtr = std::make_shared<LoopLabel>(loopLabelPtr);
 	}
 	loopLabelPtr->start=byteCode->size();
-	LabelList orLabel;
-	LabelList andLabel;
 	match(LPAREN);
-	orExpr(orLabel,andLabel);
+	orExpr();
 	match(RPAREN);
-	byteCode->push_back((char)JMP);
+	byteCode->push_back((char)JMPIFF);
 	int pos = (int)byteCode->size();
 	pushWord(0);
-
-	for (auto& p : andLabel){
-		setWord(p.first,p.second);
-	}
-
-	for (auto& i : orLabel){
-		setWord(i.first, byteCode->size()-i.first-WORDSIZE);
-	}
 
 	symTab = std::make_shared<SymbolTable>(symTab,symTab->isGlobal?0:symTab->getLocalVars());
 	stmts();

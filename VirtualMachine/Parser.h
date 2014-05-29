@@ -79,11 +79,11 @@ public:
 	void breakStmt();
 	void continueStmt();
 
-	void orExpr(LabelList& orLabel,LabelList& andLabel);
-	void orExpr2(LabelList& orLabel,LabelList& andLabel);
-	void andExpr(LabelList& orLabel,LabelList& andLabel);
-	void andExpr2(LabelList& orLabel,LabelList& andLabel);
-	void notExpr(LabelList& orLabel,LabelList& andLabel,bool notFlag);
+	void orExpr();
+	void orExpr2();
+	void andExpr();
+	void andExpr2();
+	void notExpr(bool notFlag);
 	void relaExpr();
 	void function();
 	void program();
