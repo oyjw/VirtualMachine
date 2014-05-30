@@ -66,6 +66,7 @@ public:
 	void basic();
 	
 	void elem();
+	void expr();
 	void stmt();
 	void stmts();
 	void stmtList();
@@ -85,15 +86,17 @@ public:
 	void relaExpr();
 	void function();
 	void program();
-	void functioncall();
 
-	int funcArgs(Token* function);
-	void objCall(bool isLvalue,std::pair<bool,int> pair);
+	void funcArgs(Token* function, bool isObjCall);
+	void objCall();
 	void newExpr();
 	void classDefinition();
+	bool parseValue(int& type, int& index);
+	void pushValue(int type, int index, bool isGlobal);
+	void parseVar(bool lvalue = false);
 private:
-	int addSymbol(Token* token);
-	std::pair<bool,int> parseIdentifier(Token* token, bool push);
+	int addSymbol();
+	std::pair<bool,int> parseIdentifier();
 	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);

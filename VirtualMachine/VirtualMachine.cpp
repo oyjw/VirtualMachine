@@ -15,7 +15,7 @@
 
 
 VirtualMachine::VirtualMachine():threshold(100),top(0),symTab(new SymbolTable),byteCodePtr(new ByteCode),
-	stringPoolPtr(new StringPool) {}
+	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool) {}
 
 int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCodePos){
 	while (byteCodePos <byteCodes.size()){
@@ -220,6 +220,22 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 					int nResult = execute(obj.value.funObj->bytes, newBase, 0);
 					top = nResult? newBase: newBase - 1;
 					stack.resize(top);
+				}
+				else if (obj.type == CLSTYPE){
+					Object obj;
+					obj.type = CLSOBJ;
+					ClsObj *clsObj = new ClsObj;
+					objectPoolPtr->putObj(clsObj);
+					clsObj->attrs = obj.value.clsType->clsAttrs;
+					obj.value.clsObj = clsObj;
+					StrObj* strObj = new StrObj();
+					strObj->str = "__init__";
+					auto iter = obj.value.clsType->clsAttrs.find(strObj);
+					stack
+					if (iter != obj.value.clsType->clsAttrs.end()){
+						newBase = top - nargs - 1;
+						int nResult = execute(iter->second.value.funObj->bytes, newBase, 0);
+					}
 				}
 				else if (obj.type == CFUNOBJ){
 					

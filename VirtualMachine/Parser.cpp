@@ -13,42 +13,106 @@ Parser::~Parser() {
 	delete tokenizer;
 }
 
-int Parser::addSymbol(Token* token){
+int Parser::addSymbol(){
+	Token *token = tokenizer->getToken();
+	match(IDEN);
 	if (symTab->isSymExistLocal(token->str)){
 		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
 	}
 	return symTab->putSym(token->str);
 }
 
-
-std::pair<bool,int> Parser::parseIdentifier(Token* token, bool push){
-	auto pair = symTab->findSym(token->str);
-	if (pair.second == -1){
-		tokenizer->error("Unknown symbol",token,SYMBOLERROR);
+bool Parser::parseValue(int& type, int& index){
+	Token* token = tokenizer->getToken();
+	tokenizer->advance();
+	if (token->type == IDEN){
+		auto pair = symTab->findSym(token->str);
+		if (pair.second == -1){
+			tokenizer->error("Unknown symbol",token,SYMBOLERROR);
+		}
+		type = IDEN;
+		index = pair.second;
+		return pair.first;
 	}
-	byteCode->push_back(char(pair.first ? PUSHGLOBAL : PUSHLOCAL));
-	pushWord(pair.second);
-	return pair;
+	else if (token->type == STRING){
+		index = getSharedString(token->str);
+		type = STRING;
+	}
+	return false;
 }
 
-int Parser::funcArgs(Token* function){
-	int nArgs=0;
+void Parser::pushValue(int type, int index, bool isGlobal ){
+	switch (type){
+		case IDEN:{
+			byteCode->push_back(char(isGlobal? PUSHGLOBAL: PUSHLOCAL));  
+			pushWord(index); 
+			break;
+		}
+		case STRING:{
+			byteCode->push_back((char)PUSHSTRING); 
+			pushWord(index); 
+			break;
+		}
+		default: assert(0);
+	}
+}
+
+void Parser::parseVar(bool lvalue){
+	int type, index;
+	Token* function = tokenizer->getToken();
+	bool isGlobal = parseValue(type, index);
+	pushValue(type, index, isGlobal);
 	Token* token = tokenizer->getToken();
-	if (token->type!=RPAREN){
+	bool isObjCall = false;
+	if (token->type == COLON){
+		objCall();
+		if (lvalue)
+			return;
+		byteCode->push_back((char)GETATTR);
+		token = tokenizer->getToken(0);
+		isObjCall = true;
+	}
+	if (token->type == LPAREN){
+		if (isObjCall){
+			pushValue(type, index, isGlobal);
+		}
+		funcArgs(function, isObjCall);
+	}
+}
+
+void Parser::funcArgs(Token* function, bool isObjCall){
+	tokenizer->advance();
+	int nArgs = 0;
+	Token* token = tokenizer->getToken();
+	if (token->type != RPAREN){
 		while(1){
 			if (nArgs > 16){
 				tokenizer->error("too many arguments", function);
 			}
-			term();
+			expr();
 			nArgs++;
 			token = tokenizer->getToken();
-			if(token->type!=COMMA)
+			if(token->type != COMMA)
 				break;
 			tokenizer->advance();
 			token = tokenizer->getToken();
 		}
 	}
-	return nArgs;
+	match(RPAREN);
+	byteCode->push_back((char)CALLFUNC);
+	byteCode->push_back(char(isObjCall? nArgs + 1: nArgs));
+}
+
+void Parser::expr(){
+	Token* token = tokenizer->getToken();
+	Token* nextToken = tokenizer->getToken(1);
+	if (token->type == NOT || nextToken->type == AND || nextToken->type == OR || nextToken->type == EQ || nextToken->type == NOTEQ  || 
+		nextToken->type == LT || nextToken->type == GT || nextToken->type == LE || nextToken->type == GE){
+		orExpr();
+	}
+	else{
+		term();
+	}
 }
 
 void Parser::declarations(){
@@ -81,11 +145,9 @@ int Parser::declList(){
 
 
 void Parser::decl(){
-	Token* token = tokenizer->getToken();
-	match(IDEN);
-	int n = addSymbol(token);
+	int n = addSymbol();
 	n += symTab->nLocalVars;
-	token = tokenizer->getToken();
+	Token* token = tokenizer->getToken();
 	if (token->type!=ASSIGN)
 		return;
 	tokenizer->advance();
@@ -102,7 +164,7 @@ void Parser::assignStmt(){
 	bool global = false;
 	bool objLvalue = false;
 	if (isClass && !isClassFunction){
-		addSymbol(token);
+		addSymbol();
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHGLOBAL);
 		pushWord(clsIndex);
@@ -111,9 +173,7 @@ void Parser::assignStmt(){
 	}
 	else {
 		if (token2->type == COLON){
-			Token* token = tokenizer->getToken();
-			auto p = parseIdentifier(token, false);
-			objCall(true, p);
+			parseVar(true);
 			objLvalue = true;
 		}
 		else{
@@ -164,7 +224,7 @@ void Parser::term2(){
 
 void Parser::factor(){
 	Token* token = tokenizer->getToken();
-	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS) {
+	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS ) {
 		basic();
 		factor2();
 	}
@@ -209,19 +269,7 @@ void Parser::basic(){
 		pushFloat(val);
 	}
 	else if (token->type == IDEN) {
-		Token* nexttoken = tokenizer->getToken(1);
-		if (nexttoken->type == COLON){
-			Token* token = tokenizer->getToken();
-			auto p = parseIdentifier(token, false);
-			objCall(false, p);
-			return;
-		}
-		if (nexttoken->type == LPAREN){
-			functioncall();
-			return;
-		}
-		parseIdentifier(token, true);
-		tokenizer->advance();
+		parseVar();
 	}
 	else if (token->type == LPAREN){
 		tokenizer->advance();
@@ -229,14 +277,7 @@ void Parser::basic(){
 		match(RPAREN);
 	}
 	else if (token->type == STRING){
-		int index = getSharedString(token->str);
-		byteCode->push_back(PUSHSTRING);
-		pushWord(index);
-		tokenizer->advance();
-		Token* token = tokenizer->getToken();
-		if (token->type == COLON){
-			objCall(false, )
-		}
+		parseVar();
 	}
 	else {
 		tokenizer->error("syntax error",token);
@@ -264,14 +305,18 @@ void Parser::stmt(){
 	bool matchSemi=true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
-		Token* nexttoken = tokenizer->getToken(1);
-		if (nexttoken->type == ASSIGN)
+		Token* nextToken = tokenizer->getToken(1);
+		if (nextToken->type == ASSIGN)
 			assignStmt();
-		else if (nexttoken->type == LPAREN)
-			functioncall();
+		else if (nextToken->type == LPAREN)
+			parseVar();
 		else {
 			tokenizer->error("syntax error",token);
 		}
+	}
+	else if (token->type == CLASS){
+		classDefinition();
+		matchSemi=false;
 	}
 	else if (token->type == PRINT){
 		printStmt();
@@ -326,9 +371,8 @@ void Parser::returnStmt(){
 void Parser::function(){
 	tokenizer->advance();
 	Token *token = tokenizer->getToken();
-	match(IDEN);
 	
-	int index = addSymbol(token);
+	int index = addSymbol();
 	StrObj* strObj = NULL;
 	if (isClass){
 		int sindex = getSharedString(token->str);
@@ -346,9 +390,8 @@ void Parser::function(){
 		if (nArgs > 16){
 			tokenizer->error("too many parameters");
 		}
-		addSymbol(token);
+		addSymbol();
 		nArgs++;
-		tokenizer->advance();
 		token = tokenizer->getToken();
 		if (token->type != COMMA){
 			break;
@@ -380,18 +423,6 @@ void Parser::function(){
 	
 	byteCodePtr = byteCodePtr->getNext();
 	this->byteCode = &byteCodePtr->v;
-}
-
-void Parser::functioncall(){
-	Token* token = tokenizer->getToken();
-	parseIdentifier(token, true);
-	tokenizer->advance();
-	match(LPAREN);
-	int nArgs=funcArgs(token);
-	
-	match(RPAREN);
-	byteCode->push_back((char)CALLFUNC);
-	byteCode->push_back((char)nArgs);
 }
 
 
@@ -586,7 +617,7 @@ int Parser::getSharedString(const std::string& str){
 	return index;
 }
 
-void Parser::objCall(bool isLvalue, std::pair<bool,int> pair){
+void Parser::objCall(){
 	tokenizer->advance(1);
 	
 	Token* token = tokenizer->getToken();
@@ -594,19 +625,6 @@ void Parser::objCall(bool isLvalue, std::pair<bool,int> pair){
 	int index = getSharedString(token->str);
 	byteCode->push_back((char)PUSHSTRING);
 	pushWord(index);
-	if (isLvalue)
-		return;
-	byteCode->push_back((char)GETATTR);
-	Token *token2 = tokenizer->getToken();
-	if (token2->type == LPAREN){
-		byteCode->push_back(char(pair.first?PUSHGLOBAL:PUSHLOCAL));
-		byteCode->push_back((char)pair.second);
-		tokenizer->advance();
-		int nArgs = funcArgs(token);
-		match(RPAREN);
-		byteCode->push_back(CALLFUNC);
-		byteCode->push_back((char)nArgs);
-	}
 }
 
 
@@ -623,12 +641,7 @@ void Parser::newExpr(){
 
 void Parser::classDefinition(){
 	tokenizer->advance();
-	Token* token = tokenizer->getToken();
-	match(IDEN);
-	if (symTab->isSymExistLocal(token->str)){
-		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
-	}
-	int index = symTab->putSym(token->str);
+	int index = addSymbol();
 	ClsType *cls = new ClsType;
 	objectPoolPtr->putCls((void*)cls);
 	curClsType = cls;
@@ -636,19 +649,18 @@ void Parser::classDefinition(){
 	Object object = { CLSTYPE, cls };
 	symTab->putObj(index,object);
 	clsIndex = index;
-
-	token = tokenizer->getToken();
-	if (token->type == LPAREN){
-		tokenizer->advance();
-		do{
-			token = tokenizer->getToken();
-			match(IDEN);
-			if (!symTab->isSymExistLocal(token->str)){
-				tokenizer->error("class not found",token,SYMBOLERROR);
-			}
-		} while (token->type != RPAREN);
+	match(LPAREN);
+	Token* token = tokenizer->getToken();
+	while(token->type != RPAREN){
+		match(IDEN);
+		if (!symTab->isSymExistLocal(token->str)){
+			tokenizer->error("class not found",token,SYMBOLERROR);
+		}
+		token = tokenizer->getToken();
+		if (token->type != COMMA)
+			break;
 	}
-	tokenizer->advance();
+	match(RPAREN);
 	symTab = std::make_shared<SymbolTable>(symTab,0);
 
 	match(LBRACE);
