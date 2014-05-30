@@ -33,12 +33,14 @@ public:
 		stack.push_back(obj);
 		top++;
 	}
+	void throwError(const std::string msg, int type);
 public:
 	SymPtr symTab;
 	std::shared_ptr<StringPool> stringPoolPtr;
 	ByteCodePtr byteCodePtr;
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 private:
+	bool boolValue(Object& obj);
 	void collect();
 	void compute(int opcode);
 	void compare(int opcode);

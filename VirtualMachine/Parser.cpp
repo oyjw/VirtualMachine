@@ -9,6 +9,10 @@
 #include <sstream>
 #include <climits>
 
+Parser::~Parser() {
+	delete tokenizer;
+}
+
 int Parser::addSymbol(Token* token){
 	if (symTab->isSymExistLocal(token->str)){
 		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
@@ -16,12 +20,8 @@ int Parser::addSymbol(Token* token){
 	return symTab->putSym(token->str);
 }
 
-int Parser::getSymbolIndex(const std::string& str){
 
-	return 0;
-}
-
-std::pair<bool,int> Parser::parseIdentifier(Token* token){
+std::pair<bool,int> Parser::parseIdentifier(Token* token, bool push){
 	auto pair = symTab->findSym(token->str);
 	if (pair.second == -1){
 		tokenizer->error("Unknown symbol",token,SYMBOLERROR);
@@ -31,8 +31,28 @@ std::pair<bool,int> Parser::parseIdentifier(Token* token){
 	return pair;
 }
 
+int Parser::funcArgs(Token* function){
+	int nArgs=0;
+	Token* token = tokenizer->getToken();
+	if (token->type!=RPAREN){
+		while(1){
+			if (nArgs > 16){
+				tokenizer->error("too many arguments", function);
+			}
+			term();
+			nArgs++;
+			token = tokenizer->getToken();
+			if(token->type!=COMMA)
+				break;
+			tokenizer->advance();
+			token = tokenizer->getToken();
+		}
+	}
+	return nArgs;
+}
+
 void Parser::declarations(){
-	match(VAR);
+	tokenizer->advance();
 	std::vector<char>::size_type pos=0;
 	if(!symTab->isGlobal){
 		byteCode->push_back(ADJUST);
@@ -79,7 +99,7 @@ void Parser::assignStmt(){
 	tokenizer->advance();
 	Token* token2 = tokenizer->getToken();
 	int n = 0;
-	bool global;
+	bool global = false;
 	bool objLvalue = false;
 	if (isClass && !isClassFunction){
 		addSymbol(token);
@@ -91,7 +111,9 @@ void Parser::assignStmt(){
 	}
 	else {
 		if (token2->type == COLON){
-			objCall(true);
+			Token* token = tokenizer->getToken();
+			auto p = parseIdentifier(token, false);
+			objCall(true, p);
 			objLvalue = true;
 		}
 		else{
@@ -189,14 +211,16 @@ void Parser::basic(){
 	else if (token->type == IDEN) {
 		Token* nexttoken = tokenizer->getToken(1);
 		if (nexttoken->type == COLON){
-			objCall(false);
+			Token* token = tokenizer->getToken();
+			auto p = parseIdentifier(token, false);
+			objCall(false, p);
 			return;
 		}
 		if (nexttoken->type == LPAREN){
 			functioncall();
 			return;
 		}
-		parseIdentifier(token);
+		parseIdentifier(token, true);
 		tokenizer->advance();
 	}
 	else if (token->type == LPAREN){
@@ -209,6 +233,10 @@ void Parser::basic(){
 		byteCode->push_back(PUSHSTRING);
 		pushWord(index);
 		tokenizer->advance();
+		Token* token = tokenizer->getToken();
+		if (token->type == COLON){
+			objCall(false, )
+		}
 	}
 	else {
 		tokenizer->error("syntax error",token);
@@ -356,7 +384,7 @@ void Parser::function(){
 
 void Parser::functioncall(){
 	Token* token = tokenizer->getToken();
-	parseIdentifier(token);
+	parseIdentifier(token, true);
 	tokenizer->advance();
 	match(LPAREN);
 	int nArgs=funcArgs(token);
@@ -366,25 +394,7 @@ void Parser::functioncall(){
 	byteCode->push_back((char)nArgs);
 }
 
-int Parser::funcArgs(Token* function){
-	int nArgs=0;
-	Token* token = tokenizer->getToken();
-	if (token->type!=RPAREN){
-		while(1){
-			if (nArgs > 16){
-				tokenizer->error("too many arguments", function);
-			}
-			term();
-			nArgs++;
-			token = tokenizer->getToken();
-			if(token->type!=COMMA)
-				break;
-			tokenizer->advance();
-			token = tokenizer->getToken();
-		}
-	}
-	return nArgs;
-}
+
 void Parser::stmts(){
 	Token* token = tokenizer->getToken();
 	if (token->type == LBRACE){
@@ -514,7 +524,7 @@ void Parser::relaExpr(){
 }
 
 void Parser::whileStmt(){
-	match(WHILE);
+	tokenizer->advance();
 	if (loopLabelPtr == NULL){
 		loopLabelPtr = std::make_shared<LoopLabel>();
 	}
@@ -550,14 +560,14 @@ void Parser::whileStmt(){
 }
 
 void Parser::breakStmt(){
-	match(BREAK);
+	tokenizer->advance();
 	byteCode->push_back(JMP);
 	loopLabelPtr->breaks.push_back(byteCode->size());
 	pushWord(0);
 }
 
 void Parser::continueStmt(){
-	match(CONTINUE);
+	tokenizer->advance();
 	byteCode->push_back(JMP);
 	loopLabelPtr->continues.push_back(byteCode->size());
 	pushWord(0);
@@ -576,12 +586,10 @@ int Parser::getSharedString(const std::string& str){
 	return index;
 }
 
-void Parser::objCall(bool isLvalue){
-	Token* token = tokenizer->getToken();
-	auto p = parseIdentifier(token);
-	tokenizer->advance(2);
+void Parser::objCall(bool isLvalue, std::pair<bool,int> pair){
+	tokenizer->advance(1);
 	
-	token = tokenizer->getToken();
+	Token* token = tokenizer->getToken();
 	match(IDEN);
 	int index = getSharedString(token->str);
 	byteCode->push_back((char)PUSHSTRING);
@@ -591,8 +599,8 @@ void Parser::objCall(bool isLvalue){
 	byteCode->push_back((char)GETATTR);
 	Token *token2 = tokenizer->getToken();
 	if (token2->type == LPAREN){
-		byteCode->push_back(char(p.first?PUSHGLOBAL:PUSHLOCAL));
-		byteCode->push_back((char)p.second);
+		byteCode->push_back(char(pair.first?PUSHGLOBAL:PUSHLOCAL));
+		byteCode->push_back((char)pair.second);
 		tokenizer->advance();
 		int nArgs = funcArgs(token);
 		match(RPAREN);
@@ -614,7 +622,7 @@ void Parser::newExpr(){
 }
 
 void Parser::classDefinition(){
-	match(CLASS);
+	tokenizer->advance();
 	Token* token = tokenizer->getToken();
 	match(IDEN);
 	if (symTab->isSymExistLocal(token->str)){

@@ -140,11 +140,40 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 				compare(OP_GE);
 				break;
 			}
+			case OP_OR:{
+				Object& l = stack[top - 2];
+				Object& r = stack[top - 1];
+				if (!boolValue(l)){
+					if (boolValue(r)){
+						l.value.boolval = true;
+					}
+					else {
+						l.value.boolval = false;
+					}
+					l.type = BOOLOBJ;
+				}
+				top--;
+				stack.resize(top);
+				break;
+			}
+			case OP_AND:{
+				Object& l = stack[top - 2];
+				Object& r = stack[top - 1];
+				if (boolValue(l) && boolValue(r)){
+					l.value.boolval = true;
+				}		
+				else {
+					l.value.boolval = false;
+				}
+				l.type = BOOLOBJ;	
+				top--;
+				stack.resize(top);
+				break;
+			}
 			case OP_NOT:{
 				Object& obj=stack[top-1];
 				int steps = getWord(byteCodes,byteCodePos);
-				if (obj.type == NUMOBJ && obj.value.numval==0  ||  obj.type==NILOBJ  ||
-					obj.type == BOOLOBJ && obj.value.boolval==false){
+				if (boolValue(obj)){
 					obj.value.boolval = true;
 				}		
 				else {
@@ -275,6 +304,17 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 	return 0;
 }
 
+bool VirtualMachine::boolValue(Object& obj){
+	if (obj.type == NUMOBJ && obj.value.numval==0  ||  obj.type==NILOBJ  ||
+		obj.type == BOOLOBJ && obj.value.boolval==false ||
+		obj.type == STROBJ && obj.value.strObj->str==""){
+		return false;
+	}		
+	else {
+		return true;
+	}
+}
+
 void VirtualMachine::compute(int opcode){
 	Object& l = stack[top - 2];
 	Object& r = stack[top - 1];
@@ -400,6 +440,14 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1 << "\tOP_GE\t"  <<std::endl;
 				break;
 			}
+			case OP_OR:{
+				ofs << byteCodePos-1 << "\tOP_OR\t"  <<std::endl;
+				break;
+			}
+			case OP_AND:{
+				ofs << byteCodePos-1 << "\tOP_AND\t"  <<std::endl;
+				break;
+			}
 			case OP_NOT:{
 				ofs << byteCodePos-1 << "\tOP_NOT\t"  <<std::endl;	
 				break;
@@ -452,7 +500,6 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 			default:assert(0);
 			}
 	}
-	return 0;
 }
 
 void VirtualMachine::run(){
@@ -498,11 +545,14 @@ float VirtualMachine::getFloat(std::vector<char>& byteCode ,size_t &byteCodePos)
 }
 
 
-
 bool VirtualMachine::pushFunObj(const std::string& symbol){
 	auto p = symTab->findSym(symbol);
 	if (!p.first){
 		return false;
 	}
 	stack.push_back(symTab->getObj(p.second));
+}
+
+void VirtualMachine::throwError(const std::string msg, int type){
+
 }

@@ -8,6 +8,11 @@ public:
 	TypeError(const std::string& msg) :exception(msg.c_str()) {}
 };
 
+class AttrError :public std::exception
+{
+public:
+	AttrError(const std::string& msg) :exception(msg.c_str()) {}
+};
 
 class TokenError :public std::exception
 {

@@ -6,7 +6,7 @@
 #define WORDSIZE 2
 class SymbolTable;
 typedef std::shared_ptr<SymbolTable> SymPtr;
-struct Token;
+class Token;
 
 class Tokenizer;
 class ObjectPool;
@@ -52,9 +52,7 @@ public:
 		symTab=tab;
 		tokenizer=t;
 	}
-	~Parser() {
-		delete tokenizer;
-	}
+	~Parser() ;
 	ByteCodePtr getByteCodePtr(){
 		return byteCodePtr;
 	}
@@ -90,13 +88,12 @@ public:
 	void functioncall();
 
 	int funcArgs(Token* function);
-	void objCall(bool isLvalue);
+	void objCall(bool isLvalue,std::pair<bool,int> pair);
 	void newExpr();
 	void classDefinition();
 private:
 	int addSymbol(Token* token);
-	std::pair<bool,int> parseIdentifier(Token* token);
-	int getSymbolIndex(const std::string& str);
+	std::pair<bool,int> parseIdentifier(Token* token, bool push);
 	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);

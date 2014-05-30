@@ -256,17 +256,13 @@ void Tokenizer::advance(int step){
 
 std::string getTypeStr(int type){
 	switch (type){
-	case PLUS:return "+";
-	case MINUS:return "-";
-	case STAR:return "*";
-	case SLASH:return "/";
-	case VAR:return "var";
+	case ASSIGN:return "=";
 	case IDEN:return "identifier";
 	case LPAREN:return "(";
 	case RPAREN:return ")";
 	case LBRACE:return "{";
-	case COMMA:return ";";
-	default: return "";
+	case SEMICOLON:return ";";
+	default: assert(0);
 	}
 }
 

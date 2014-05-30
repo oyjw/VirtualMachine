@@ -53,17 +53,17 @@ struct Object{
 
 class ClsType {
 public:
+	std::string clsName;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
 	ClsType() {}
 };
 
 class ClsObj {
 public:
+	ClsType* type;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
 	ClsObj() {}
 };
-
-
 
 #include <cassert>
 namespace std{
