@@ -221,6 +221,9 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 					top = nResult? newBase: newBase - 1;
 					stack.resize(top);
 				}
+				else if (obj.type == CFUNOBJ){
+					
+				}
 				else if (obj.type == CLSTYPE){
 					Object obj;
 					obj.type = CLSOBJ;
@@ -231,14 +234,10 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 					StrObj* strObj = new StrObj();
 					strObj->str = "__init__";
 					auto iter = obj.value.clsType->clsAttrs.find(strObj);
-					stack
 					if (iter != obj.value.clsType->clsAttrs.end()){
 						newBase = top - nargs - 1;
 						int nResult = execute(iter->second.value.funObj->bytes, newBase, 0);
 					}
-				}
-				else if (obj.type == CFUNOBJ){
-					
 				}
 				else assert(0);
 				break;

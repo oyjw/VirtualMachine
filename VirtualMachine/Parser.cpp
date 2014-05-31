@@ -57,30 +57,50 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 	}
 }
 
-void Parser::parseVar(bool lvalue){
+void Parser::parseOp(bool lvalue){
 	int type, index;
-	Token* function = tokenizer->getToken();
 	bool isGlobal = parseValue(type, index);
 	pushValue(type, index, isGlobal);
-	Token* token = tokenizer->getToken();
-	bool isObjCall = false;
-	if (token->type == COLON){
-		objCall();
-		if (lvalue)
-			return;
-		byteCode->push_back((char)GETATTR);
-		token = tokenizer->getToken(0);
-		isObjCall = true;
+	if (lvalue){
+		parseSeleOp();
+		return;
 	}
-	if (token->type == LPAREN){
-		if (isObjCall){
-			pushValue(type, index, isGlobal);
-		}
-		funcArgs(function, isObjCall);
+	else {
+		parseOp2();
 	}
 }
 
-void Parser::funcArgs(Token* function, bool isObjCall){
+void Parser::parseSeleOp(){
+	tokenizer->advance(1);
+	
+	Token* token = tokenizer->getToken();
+	match(IDEN);
+	int index = getSharedString(token->str);
+	byteCode->push_back((char)PUSHSTRING);
+	pushWord(index);
+}
+
+void Parser::parseOp2(){
+	Token* token = tokenizer->getToken();
+	//bool isObjCall = false;
+	bool recursion = false;
+	if (token->type == COLON){
+		parseSeleOp();
+		byteCode->push_back((char)GETATTR);
+		token = tokenizer->getToken();
+		//isObjCall = true;
+		recursion = true;
+	}
+	if (token->type == LPAREN){
+		funcArgs(token);
+		parseOp2();
+		recursion = true;
+	}
+	if (recursion)
+		parseOp2();
+}
+
+void Parser::funcArgs(Token* function){
 	tokenizer->advance();
 	int nArgs = 0;
 	Token* token = tokenizer->getToken();
@@ -100,7 +120,7 @@ void Parser::funcArgs(Token* function, bool isObjCall){
 	}
 	match(RPAREN);
 	byteCode->push_back((char)CALLFUNC);
-	byteCode->push_back(char(isObjCall? nArgs + 1: nArgs));
+	byteCode->push_back(char(nArgs));
 }
 
 void Parser::expr(){
@@ -173,7 +193,7 @@ void Parser::assignStmt(){
 	}
 	else {
 		if (token2->type == COLON){
-			parseVar(true);
+			parseOp(true);
 			objLvalue = true;
 		}
 		else{
@@ -269,7 +289,7 @@ void Parser::basic(){
 		pushFloat(val);
 	}
 	else if (token->type == IDEN) {
-		parseVar();
+		parseOp();
 	}
 	else if (token->type == LPAREN){
 		tokenizer->advance();
@@ -277,20 +297,18 @@ void Parser::basic(){
 		match(RPAREN);
 	}
 	else if (token->type == STRING){
-		parseVar();
+		parseOp();
 	}
 	else {
 		tokenizer->error("syntax error",token);
 	}
 }
 
-
-
 void Parser::program(){
 	Token* token = tokenizer->getToken();
-	if (token->type != ENDOF){
+	while (token->type != ENDOF){
 		elem();
-		program();
+		token = tokenizer->getToken();
 	}
 }
 
@@ -308,8 +326,8 @@ void Parser::stmt(){
 		Token* nextToken = tokenizer->getToken(1);
 		if (nextToken->type == ASSIGN)
 			assignStmt();
-		else if (nextToken->type == LPAREN)
-			parseVar();
+		else if (nextToken->type == LPAREN || nextToken->type == COLON)
+			parseOp();
 		else {
 			tokenizer->error("syntax error",token);
 		}
@@ -617,16 +635,6 @@ int Parser::getSharedString(const std::string& str){
 	return index;
 }
 
-void Parser::objCall(){
-	tokenizer->advance(1);
-	
-	Token* token = tokenizer->getToken();
-	match(IDEN);
-	int index = getSharedString(token->str);
-	byteCode->push_back((char)PUSHSTRING);
-	pushWord(index);
-}
-
 
 void Parser::newExpr(){
 	tokenizer->advance();
@@ -646,7 +654,7 @@ void Parser::classDefinition(){
 	objectPoolPtr->putCls((void*)cls);
 	curClsType = cls;
 	isClass = true;
-	Object object = { CLSTYPE, cls };
+	Object object = { CLSTYPE, {cls }};
 	symTab->putObj(index,object);
 	clsIndex = index;
 	match(LPAREN);

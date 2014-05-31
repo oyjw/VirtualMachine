@@ -87,13 +87,14 @@ public:
 	void function();
 	void program();
 
-	void funcArgs(Token* function, bool isObjCall);
-	void objCall();
+	void funcArgs(Token* function);
+	void parseSeleOp();
 	void newExpr();
 	void classDefinition();
 	bool parseValue(int& type, int& index);
 	void pushValue(int type, int index, bool isGlobal);
-	void parseVar(bool lvalue = false);
+	void parseOp(bool lvalue = false);
+	void parseOp2();
 private:
 	int addSymbol();
 	std::pair<bool,int> parseIdentifier();

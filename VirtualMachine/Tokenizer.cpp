@@ -62,13 +62,18 @@ void Tokenizer::scan(){
 	do{
 		line++;
 		std::getline(ifs, input); 
-
-		if (ifs.fail()){
+		if (ifs.bad() || ifs.fail() ){
 			std::ostringstream oss;
 			oss << "file read fail: " << fileName << " : " << line << std::endl;
 			throw std::runtime_error(oss.str());
 		}
-	} while (input == "");
+	} while (input == "" && !ifs.eof());
+	if (input == "" && ifs.eof()){
+		Token token;
+		token.type=ENDOF;
+		tokenVec.push_back(token);
+		return ;
+	}
 	input += '\n';
 	curLine = input;
 	c = input[num - 1];
@@ -224,7 +229,7 @@ void Tokenizer::scan(){
 			}
 			break;
 		}
-		default: break;
+		default: assert(0);
 		}
 		if (pushtoken){
 			tokenVec.push_back(token);
