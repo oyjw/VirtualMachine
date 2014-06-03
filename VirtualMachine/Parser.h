@@ -48,9 +48,8 @@ struct LoopLabel{
 class Parser{
 public:
 	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp,std::shared_ptr<ObjectPool> op):byteCodePtr(bcp),
-		byteCode(&byteCodePtr->v),stringPoolPtr(sp),curClsType(NULL),isClass(false),isClassFunction(false),clsIndex(0),objectPoolPtr(op) {
-		symTab=tab;
-		tokenizer=t;
+		byteCode(&byteCodePtr->v),stringPoolPtr(sp),curClsType(NULL),isClass(false),isClassFunction(false),clsIndex(0),objectPoolPtr(op),
+		tokenizer(t), symTab(tab){
 	}
 	~Parser() ;
 	ByteCodePtr getByteCodePtr(){
@@ -66,7 +65,6 @@ public:
 	void basic();
 	
 	void elem();
-	void expr();
 	void stmt();
 	void stmts();
 	void stmtList();
@@ -88,16 +86,16 @@ public:
 	void program();
 
 	void funcArgs(Token* function);
-	void parseSeleOp();
-	void newExpr();
+	int parseSeleOp();
 	void classDefinition();
 	bool parseValue(int& type, int& index);
 	void pushValue(int type, int index, bool isGlobal);
-	void parseOp(bool lvalue = false);
-	void parseOp2();
+	void parseOp();
+	void lvalue();
+	void rvalue();
+	std::pair<bool, int> parseIden(Token* token);
 private:
 	int addSymbol();
-	std::pair<bool,int> parseIdentifier();
 	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);

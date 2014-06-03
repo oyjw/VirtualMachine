@@ -12,7 +12,7 @@
 #include <iostream>
 #endif
 
-Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), line(0), num(1){
+Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), line(0), num(1), isAssignStmt(false){
 	wchar_t buf[1024];
 	GetCurrentDirectory(1024, buf);
 	std::wcout<< buf <<std::endl;
@@ -52,6 +52,7 @@ Token* Tokenizer::getToken(int index){
 
 void Tokenizer::scan(){
 	tokenVec.clear();
+	isAssignStmt = false;
 	vecPos = 0;
 	num = 1;
 	char c;
@@ -62,7 +63,7 @@ void Tokenizer::scan(){
 	do{
 		line++;
 		std::getline(ifs, input); 
-		if (ifs.bad() || ifs.fail() ){
+		if (ifs.bad() ){
 			std::ostringstream oss;
 			oss << "file read fail: " << fileName << " : " << line << std::endl;
 			throw std::runtime_error(oss.str());
@@ -94,8 +95,10 @@ void Tokenizer::scan(){
 				state = 4;
 				readchar = false;
 			}
-			else if (c == '=')
+			else if (c == '='){
 				state = 5;
+				isAssignStmt = true;
+			}
 			else if (c == '\n'){
 				state = 6;
 				readchar=false;

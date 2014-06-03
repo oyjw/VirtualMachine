@@ -7,7 +7,7 @@
 #include <fstream>
 enum TokenType{
 	IDEN, NUM, STRING,FUNCTION, SEMICOLON, PERIOD, NEW, STAR, SLASH, MINUS, PLUS, ENDOF, ASSIGN, EQ, NOTEQ ,LT,GT, LE ,GE ,LPAREN, 
-	RPAREN, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, ELSE, NOT, AND, OR, PRINT,VAR ,WHILE,BREAK, CONTINUE, CLASS, SELF, INITFUNC
+	RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, ELSE, NOT, AND, OR, PRINT,VAR ,WHILE,BREAK, CONTINUE, CLASS, SELF, INITFUNC
 };
 
 class Token{
@@ -33,9 +33,10 @@ public:
 	const std::string& getFileName() {return fileName; }
 	void expectedError(int,Token* token);
 	void error(const std::string& message,Token* token = 0,int errorType = 0);
+	bool isAssignStmt;
 private:
 	void scan();
-
+	
 	std::string fileName;
 	std::vector<Token> tokenVec;
 	int vecPos;
