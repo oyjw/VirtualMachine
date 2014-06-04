@@ -218,11 +218,14 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 				int newBase = top - nargs;
 				if (obj.type == FUNOBJ){
 					int nResult = execute(obj.value.funObj->bytes, newBase, 0);
-					top = nResult? newBase: newBase - 1;
+					if (nResult == 0){
+						obj.type == NILOBJ;
+					}
+					top = newBase;
 					stack.resize(top);
 				}
 				else if (obj.type == CFUNOBJ){
-					
+					Object result = obj.value.cFunObj((void*)this);
 				}
 				else if (obj.type == CLSTYPE){
 					Object obj;
