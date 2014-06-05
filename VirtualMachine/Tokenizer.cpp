@@ -37,8 +37,6 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 	reservedWord["or"] = OR;
 
 	reservedWord["class"] = CLASS;
-	reservedWord["self"] = SELF;
-	reservedWord["__init__"] = INITFUNC;
 }
 
 
@@ -71,14 +69,17 @@ void Tokenizer::scan(){
 	} while (input == "" && !ifs.eof());
 	if (input == "" && ifs.eof()){
 		Token token;
-		token.type=ENDOF;
+		token.type = ENDOF;
 		tokenVec.push_back(token);
 		return ;
 	}
+	Token token;
+	/*token.line = line;
+	token.type = LINESTART;
+	tokenVec.push_back(token);*/
 	input += '\n';
 	curLine = input;
 	c = input[num - 1];
-	Token token;
 	while (1){
 		switch (state){
 		case 0:{
@@ -111,6 +112,21 @@ void Tokenizer::scan(){
 			}
 			else if (c == '"'){
 				state = 9;
+			}
+			else if (c == '!'){
+				state = 10;
+			}
+			else if (isspace(c)){
+				state = 0;
+			}
+			else if (c == ';'){
+				token.type = SEMICOLON;
+				token.line = line;
+				token.num = num;
+				pushtoken = true;
+			}
+			else {
+				error("unknown character", num, TOKENERROR);
 			}
 			if (state!=0) {
 				token.line = line;
@@ -232,6 +248,16 @@ void Tokenizer::scan(){
 			}
 			break;
 		}
+		case 10:{
+			if (c == '='){
+				token.type = NOTEQ;
+				pushtoken = true;
+			}
+			else {
+				error("unknown token", num, TOKENERROR);
+			}
+			break;
+		}
 		default: assert(0);
 		}
 		if (pushtoken){
@@ -274,16 +300,16 @@ std::string getTypeStr(int type){
 	}
 }
 
-void Tokenizer::expectedError(int type,Token* token){
+void Tokenizer::expectedError(int type, Token* token){
 	std::string message = token->str+" doesn't match , miss " + getTypeStr(type);
-	error(message,token);
+	error(message, token->num);
 }
 
-void Tokenizer::error(const std::string& message,Token* token,int errorType){
+void Tokenizer::error(const std::string& message, int col, int errorType){
 	std::ostringstream oss;
 	oss << fileName << ":" << line << ":";
-	if (token != 0){
-		 oss<< token->num << ":";
+	if (col != 0){
+		 oss<< col << ":";
 	}
 	oss << message << "\n" << curLine << std::endl;
 	if (errorType == 0)
@@ -294,5 +320,6 @@ void Tokenizer::error(const std::string& message,Token* token,int errorType){
 		throw TypeError(oss.str());
 	else if (errorType == 3)
 		throw TokenError(oss.str());
+	else assert(0);
 }
 

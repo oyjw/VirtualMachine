@@ -17,7 +17,7 @@ int Parser::addSymbol(){
 	Token *token = tokenizer->getToken();
 	match(IDEN);
 	if (symTab->isSymExistLocal(token->str)){
-		tokenizer->error("symbol redefinition",token,SYMBOLERROR);
+		tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
 	}
 	return symTab->putSym(token->str);
 }
@@ -25,7 +25,7 @@ int Parser::addSymbol(){
 std::pair<bool, int> Parser::parseIden(Token* token){
 	auto pair = symTab->findSym(token->str);
 	if (pair.second == -1){
-		tokenizer->error("Unknown symbol",token,SYMBOLERROR);
+		tokenizer->error("Unknown symbol",token->num,SYMBOLERROR);
 	}
 	return pair;
 }
@@ -136,7 +136,7 @@ void Parser::funcArgs(Token* function){
 	if (token->type != RPAREN){
 		while(1){
 			if (nArgs > 16){
-				tokenizer->error("too many arguments", function);
+				tokenizer->error("too many arguments", function->num);
 			}
 			orExpr();
 			nArgs++;
@@ -266,7 +266,7 @@ void Parser::factor(){
 		factor2();
 	}
 	else {
-		tokenizer->error("expecting rvalue",token);
+		tokenizer->error("expecting rvalue",token->num);
 	}
 }
 
@@ -297,7 +297,7 @@ void Parser::basic(){
 		tokenizer->advance();
 		token = tokenizer->getToken();
 		if (token->type != NUM){
-			tokenizer->error("number format error",token,TYPEERROR);
+			tokenizer->error("number format error",token->num,TYPEERROR);
 		}
 		tokenizer->advance();
 		float val = (float)atof(token->str.c_str());
@@ -317,7 +317,7 @@ void Parser::basic(){
 		rvalue();
 	}
 	else {
-		tokenizer->error("syntax error",token);
+		tokenizer->error("syntax error",token->num);
 	}
 }
 
@@ -333,10 +333,16 @@ void Parser::elem(){
 	Token* token = tokenizer->getToken();
 	if (token->type == FUNCTION)
 		function();
+	else if (token->type == CLASS)
+		classDefinition();
 	else stmt();
 }
 
 void Parser::stmt(){
+	if (debugLine == 0 || tokenizer->getlinenum() != debugLine){
+		byteCode->push_back((char)SETLINE);
+		pushWord(tokenizer->getlinenum());
+	}
 	bool matchSemi=true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
@@ -349,10 +355,6 @@ void Parser::stmt(){
 			byteCode->push_back((char)-1);
 		}
 			
-	}
-	else if (token->type == CLASS){
-		classDefinition();
-		matchSemi=false;
 	}
 	else if (token->type == PRINT){
 		printStmt();
@@ -378,7 +380,7 @@ void Parser::stmt(){
 		continueStmt();
 	}
 	else {
-		tokenizer->error("syntax error",token);
+		tokenizer->error("syntax error",token->num);
 	}
 	if(matchSemi)
 		match(SEMICOLON);
@@ -407,7 +409,7 @@ void Parser::returnStmt(){
 void Parser::function(){
 	tokenizer->advance();
 	Token *token = tokenizer->getToken();
-	
+	std::string functionName = token->str;
 	int index = addSymbol();
 	StrObj* strObj = NULL;
 	if (isClass){
@@ -444,6 +446,7 @@ void Parser::function(){
 	}
 	tokenizer->advance();
 	FunObj *obj = new FunObj;
+	obj->functionName = functionName;
 	obj->nArgs = nArgs;
 	obj->bytes = std::move(byteCodePtr->v);
 	Object objectHolder;
@@ -583,9 +586,7 @@ void Parser::relaExpr(){
 	case LE:byteCode->push_back(OP_LE); break;
 	case GE:byteCode->push_back(OP_GE); break;
 	default:{
-		std::ostringstream oss;
-		oss<<tokenizer->getFileName() << "\t"<<tokenizer->getlinenum()<<"\tExpecting relation operator\n\t"<< tokenizer->getlinestr();
-		throw SyntaxError(oss.str());
+		tokenizer->error("Expecting relation operator");
 	}
 	}
 }
@@ -668,7 +669,7 @@ void Parser::classDefinition(){
 	while(token->type != RPAREN){
 		match(IDEN);
 		if (!symTab->isSymExistLocal(token->str)){
-			tokenizer->error("class not found",token,SYMBOLERROR);
+			tokenizer->error("class not found",0,SYMBOLERROR);
 		}
 		token = tokenizer->getToken();
 		if (token->type != COMMA)

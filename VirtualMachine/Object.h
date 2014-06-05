@@ -3,9 +3,17 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-enum ObjectType{
-	NUMOBJ, STROBJ, FUNOBJ, CFUNOBJ, BOOLOBJ,NILOBJ, CLSOBJ, CLSTYPE
-};
+
+#define NUMOBJ  1
+#define STROBJ  1<<1
+#define FUNOBJ  1<<2
+#define CFUNOBJ 1<<3
+#define BOOLOBJ 1<<4
+#define NILOBJ  1<<5
+#define CLSOBJ  1<<6
+#define CLSTYPE 1<<7
+#define METHOD  1<<8
+
 
 
 class StrObj {
@@ -24,9 +32,9 @@ static bool strEq( StrObj* const & s1,StrObj* const & s2){
 	return (*s1).str == (*s2).str;
 }
 
-
 class FunObj {
 public:
+	std::string functionName;
 	std::vector<char> bytes;
 	int funType;
 	int nArgs;
@@ -38,14 +46,19 @@ class ClsObj;
 struct Object;
 typedef Object (*cFunc)(void* state);
 
+struct CFunObj{
+	cFunc fun;
+	std::string functionName;
+};
+
 struct Object{
-	ObjectType type;
+	int type;
 	union{
 		bool boolval;
 		float numval;
 		StrObj* strObj;
 		FunObj* funObj;
-		cFunc cFunObj;
+		CFunObj* cFunObj;
 		ClsObj* clsObj;
 		ClsType* clsType;
 	} value;

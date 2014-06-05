@@ -6,28 +6,12 @@
 #include "OpCode.h"
 #include "SymbolTable.h"
 
-struct Book
-{
-     char bname[20];
-     int pages;
-     char author[20];
-     float price; 
-}b1[3] = {
-           {},
-           {"Book2",500,"AAK",350.00},
-           {"Book3",120,"HST",450.00}
-         };
-
-struct ErrorMsg
-{
-	int err; 
-	char* msg; 
-} errorMsg[] = {
-	{SYMBOLEXIST, "symbol already exist"}
+const char* errorMsg[] = {
+	"symbol already exist",
 };
 
 const char* strError(int err){
-	return errorMsg[err-1].msg;
+	return errorMsg[err-1];
 }
 
 ClsType* defineClass(void* state, char* className){
@@ -42,7 +26,9 @@ int defineMethod(void* state, char* funcName, cFunc func){
 	int index = vm->symTab->putSym(funcName);
 	Object object;
 	object.type = CFUNOBJ;
-	object.value.cFunObj = func;
+	object.value.cFunObj = new CFunObj;
+	object.value.cFunObj->functionName = funcName;
+	object.value.cFunObj->fun = func;
 	vm->symTab->putObj(index, object);
 	return 0;
 }
@@ -52,11 +38,17 @@ void* newState(){
 	return (void*)vm;
 }
 
-int getargs(void* state, int *len, Object** objects){
-	return 0;
+void getArgs(void* state, int *len, Object** objects){
+	VirtualMachine *vm = new VirtualMachine();
+	vm->getArgs(len, objects);
 }
 
-Object funcall(void* state, const char* name, int len, Object* object){
+static Object subStr(void* state, Object self){
+	VirtualMachine *vm = new VirtualMachine();
+	
+}
+
+Object functionCall(void* state, const char* name, int len, Object* object){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	vm->pushFunObj(name);
 	for (int i = 0; i < len; ++i){

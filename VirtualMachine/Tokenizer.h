@@ -7,7 +7,8 @@
 #include <fstream>
 enum TokenType{
 	IDEN, NUM, STRING,FUNCTION, SEMICOLON, PERIOD, NEW, STAR, SLASH, MINUS, PLUS, ENDOF, ASSIGN, EQ, NOTEQ ,LT,GT, LE ,GE ,LPAREN, 
-	RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, ELSE, NOT, AND, OR, PRINT,VAR ,WHILE,BREAK, CONTINUE, CLASS, SELF, INITFUNC
+	RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, ELSE, NOT, AND, OR, PRINT,VAR ,WHILE,BREAK, CONTINUE, 
+	CLASS, LINESTART
 };
 
 class Token{
@@ -18,10 +19,11 @@ public:
 	int type;
 };
 
-#define SYNTAXERROR 0
-#define SYMBOLERROR 1
-#define TYPEERROR 2
-#define TOKENERROR 3
+#define TYPEERROR 0
+#define ATTRERROR 1
+#define SYNTAXERROR 2
+#define SYMBOLERROR 3
+#define TOKENERROR 4
 
 class Tokenizer{
 public:
@@ -32,7 +34,7 @@ public:
 	int getlinenum() { return line; }
 	const std::string& getFileName() {return fileName; }
 	void expectedError(int,Token* token);
-	void error(const std::string& message,Token* token = 0,int errorType = 0);
+	void error(const std::string& message, int col = 0, int errorType = 0);
 	bool isAssignStmt;
 private:
 	void scan();

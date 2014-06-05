@@ -14,8 +14,10 @@
 #include <iostream>
 
 
-VirtualMachine::VirtualMachine():threshold(100),top(0),symTab(new SymbolTable),byteCodePtr(new ByteCode),
-	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool) {}
+VirtualMachine::VirtualMachine():threshold(100), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
+	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo) {
+	callInfoPtr->funcName = "main";
+}
 
 int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCodePos){
 	while (byteCodePos <byteCodes.size()){
@@ -213,10 +215,12 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 				break;
 			}
 			case CALLFUNC:{
+				callInfoPtr = std::shared_ptr<CallInfo>(callInfoPtr);
 				int nargs = byteCodes[byteCodePos++];
 				Object &obj = stack[ top - nargs - 1 ];
 				int newBase = top - nargs;
 				if (obj.type == FUNOBJ){
+					callInfoPtr->funcName = obj.value.funObj->functionName;
 					int nResult = execute(obj.value.funObj->bytes, newBase, 0);
 					if (nResult == 0){
 						obj.type == NILOBJ;
@@ -225,7 +229,11 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 					stack.resize(top);
 				}
 				else if (obj.type == CFUNOBJ){
-					Object result = obj.value.cFunObj((void*)this);
+					callInfoPtr->funcName = obj.value.cFunObj->functionName;
+					framePointer = newBase;
+					Object result = obj.value.cFunObj->fun((void*)this);
+					obj = result;
+					top = newBase;
 				}
 				else if (obj.type == CLSTYPE){
 					Object obj;
@@ -252,6 +260,11 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 			case RET0:{
 				return 0;
 			}
+			case SETLINE:{
+				int line = getWord(byteCodes, byteCodePos);
+				callInfoPtr->line = line;
+				break;
+			}
 			case PRINTFUNC:{
 				Object& obj = stack[top-1];
 				if (obj.type == NUMOBJ)
@@ -261,22 +274,6 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,int base,size_t byteCod
 				top--;
 				stack.resize(top);
 				system("pause");
-				break;
-			}
-			case CREATEOBJ:{
-				int index = getWord(byteCodes,byteCodePos);
-				Object &objType = symTab->getObj(index);
-				if (objType.type != CLSTYPE){
-					throw std::runtime_error("");
-				}
-				Object obj;
-				obj.type = CLSOBJ;
-				ClsObj *clsObj = new ClsObj;
-				objectPoolPtr->putObj(clsObj);
-				clsObj->attrs = objType.value.clsType->clsAttrs;
-				obj.value.clsObj = clsObj;
-				stack.push_back(obj);
-				top++;
 				break;
 			}
 			case GETATTR:{
@@ -498,13 +495,18 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1 << "\tRETCODE\t" <<std::endl;
 				break;
 			}
-			case PRINTFUNC:{
-				ofs << byteCodePos-1 << "\tPRINT\t"  << std::endl;
+			case RET0:{
+				ofs << byteCodePos-1 << "\tRET0\t" <<std::endl;
 				break;
 			}
-			case CREATEOBJ:{
-				int index = getWord(byteCodes,byteCodePos);
-				ofs << byteCodePos-1 << "\tCREATEOBJ\t"  << index << std::endl;
+			case SETLINE:{
+				ofs << byteCodePos-1 ;
+				int n = getWord(byteCodes,byteCodePos);
+				ofs << "\tSETLINE\t" << n << std::endl;
+				break;
+			}
+			case PRINTFUNC:{
+				ofs << byteCodePos-1 << "\tPRINT\t"  << std::endl;
 				break;
 			}
 			case GETATTR:{
@@ -562,15 +564,25 @@ float VirtualMachine::getFloat(std::vector<char>& byteCode ,size_t &byteCodePos)
 	return code.f;
 }
 
-
 bool VirtualMachine::pushFunObj(const std::string& symbol){
 	auto p = symTab->findSym(symbol);
-	if (!p.first){
+	if (p.second == -1){
 		return false;
 	}
 	stack.push_back(symTab->getObj(p.second));
+	top++;
 }
 
-void VirtualMachine::throwError(const std::string msg, int type){
+const char* emsg[] = {
+	"TypeError", "AttrError",
+};
 
+void VirtualMachine::throwError(const std::string msg, int type){
+	std::shared_ptr<CallInfo> tmp = callInfoPtr;
+	std::ostringstream oss;
+	oss << msg << "\t" << emsg[type] << std::endl;
+	while (tmp){
+		oss << tmp->funcName << "\tline:" << tmp->line <<std::endl;
+	}
+	throw std::runtime_error(oss.str());
 }

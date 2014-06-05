@@ -10,10 +10,15 @@ class StringPool;
 
 struct Object;
 
-struct callInfo{
-	int nargs;
+struct CallInfo{
+	int nArgs;
 	std::string funcName;
+	int line;
+	std::shared_ptr<CallInfo> next;
+	CallInfo() :line(0), nArgs(0) {}
+	CallInfo(std::shared_ptr<CallInfo> n) : next(n), line(0), nArgs(0) {}
 };
+
 class VirtualMachine
 {
 public:
@@ -33,6 +38,22 @@ public:
 		stack.push_back(obj);
 		top++;
 	}
+	void getArgs(int* len, Object** objs){
+		int tmp = top - framePointer;
+		if (tmp < *len){
+
+		}
+		else if (tmp > *len){
+
+		}
+		else{
+			*len = tmp;
+		}
+		*objs = new Object[*len];
+		for (int i = 0; i < *len; ++i){
+			(*objs)[i] = stack[framePointer + i];
+		}
+	}
 	void throwError(const std::string msg, int type);
 public:
 	SymPtr symTab;
@@ -48,10 +69,10 @@ private:
 	float getFloat(std::vector<char>& byteCode ,size_t &pos);
 	std::vector<Object> stack;
 	int top;
-	size_t pos;
+	size_t framePointer;
 	int nobjs;
 	int threshold;
-
+	std::shared_ptr<CallInfo> callInfoPtr;
 };
 
 #endif
