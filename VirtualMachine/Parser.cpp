@@ -10,6 +10,8 @@
 #include <climits>
 
 Parser::~Parser() {
+	if (curClsType != NULL)
+		delete curClsType;
 	delete tokenizer;
 }
 
@@ -68,12 +70,9 @@ void Parser::lvalue(){
 	auto pair = parseIden(token);
 	pushValue(IDEN, pair.second, pair.first);
 	token = tokenizer->getToken();
-	int n = 0;
 	while(token->type == PERIOD || token->type == LBRACKET){
-		n = parseSeleOp();
-	}
-	if (n){
-		byteCode->push_back((char)SETATTR);
+		parseSeleOp();
+		token = tokenizer->getToken();
 	}
 }
 
@@ -108,7 +107,7 @@ int Parser::parseSeleOp(){
 	Token* token = tokenizer->getToken();
 	int n = 0;
 	if (token->type == PERIOD){
-		tokenizer->advance(1);
+		tokenizer->advance();
 		token = tokenizer->getToken();
 		match(IDEN);
 		int index = getSharedString(token->str);
@@ -134,7 +133,7 @@ void Parser::funcArgs(Token* function){
 	int nArgs = 0;
 	Token* token = tokenizer->getToken();
 	if (token->type != RPAREN){
-		while(1){
+		while(true){
 			if (nArgs > 16){
 				tokenizer->error("too many arguments", function->num);
 			}
@@ -195,8 +194,7 @@ void Parser::decl(){
 
 void Parser::assignStmt(){
 	Token* token = tokenizer->getToken();
-	tokenizer->advance();
-	Token* token2 = tokenizer->getToken();
+	Token* token2 = tokenizer->getToken(1);
 	int n = 0;
 	bool global = false;
 	bool objLvalue = false;
@@ -214,6 +212,7 @@ void Parser::assignStmt(){
 			objLvalue = true;
 		}
 		else{
+			tokenizer->advance();
 			std::pair<bool,int> pair= symTab->findSym(token->str);
 			n = pair.second;
 			global = pair.first;
@@ -342,11 +341,11 @@ void Parser::stmt(){
 	if (debugLine == 0 || tokenizer->getlinenum() != debugLine){
 		byteCode->push_back((char)SETLINE);
 		pushWord(tokenizer->getlinenum());
+		debugLine = tokenizer->getlinenum();
 	}
 	bool matchSemi=true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
-		Token* nextToken = tokenizer->getToken(1);
 		if (tokenizer->isAssignStmt)
 			assignStmt();
 		else {
@@ -400,6 +399,9 @@ void Parser::returnStmt(){
 		byteCode->push_back(RET0);
 	}
 	else {
+		if (isClassConstructor){
+			tokenizer->error("constructor shouldn't return anything");
+		}
 		orExpr(); 
 		byteCode->push_back(RETCODE);
 	}
@@ -410,7 +412,18 @@ void Parser::function(){
 	tokenizer->advance();
 	Token *token = tokenizer->getToken();
 	std::string functionName = token->str;
-	int index = addSymbol();
+	int index = 0;
+	if (isClass && token->type == INITMETHOD){
+		isClassConstructor = true;
+		tokenizer->advance();
+		if (symTab->isSymExistLocal(token->str)){
+			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
+		}
+		index = symTab->putSym(token->str);
+	}
+	else{
+		index = addSymbol();
+	}
 	StrObj* strObj = NULL;
 	if (isClass){
 		int sindex = getSharedString(token->str);
@@ -462,6 +475,9 @@ void Parser::function(){
 	
 	byteCodePtr = byteCodePtr->getNext();
 	this->byteCode = &byteCodePtr->v;
+	if (isClassConstructor){
+		isClassConstructor = false;
+	}
 }
 
 
@@ -656,12 +672,15 @@ int Parser::getSharedString(const std::string& str){
 
 void Parser::classDefinition(){
 	tokenizer->advance();
+	std::string clsName = tokenizer->getToken()->str;
 	int index = addSymbol();
 	ClsType *cls = new ClsType;
-	objectPoolPtr->putCls((void*)cls);
 	curClsType = cls;
+	curClsType->clsName = clsName;
 	isClass = true;
-	Object object = { CLSTYPE, {cls }};
+	Object object;
+	object.type = CLSTYPE;
+	object.value.clsType = cls;
 	symTab->putObj(index,object);
 	clsIndex = index;
 	match(LPAREN);

@@ -37,6 +37,7 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 	reservedWord["or"] = OR;
 
 	reservedWord["class"] = CLASS;
+	reservedWord["__init__"] = INITMETHOD;
 }
 
 
@@ -91,8 +92,8 @@ void Tokenizer::scan(){
 				state = 2;
 				token.str += c;
 			}
-			else if (c == '+' || c == '-' || c == '*' || c == '/' || c=='(' || c== ')' || c=='{' || c=='}' ||
-				c == ',' ){
+			else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c=='(' || c== ')' || c=='{' || c=='}' ||
+				c == ',' || c == '.'){
 				state = 4;
 				readchar = false;
 			}
@@ -170,9 +171,7 @@ void Tokenizer::scan(){
 			}
 			else  {
 				if (token.str[token.str.size() - 1] == '.'){
-					std::ostringstream oss;
-					oss << token.line << ":" << token.num << "  Number format error:" << token.str<<std::endl;
-					throw TokenError(oss.str());
+					error("number format error", num, TOKENERROR);
 				}
 				token.type = NUM;
 				pushtoken = true;
@@ -186,11 +185,13 @@ void Tokenizer::scan(){
 			case '-':token.type = MINUS; break;
 			case '*':token.type = STAR; break; 
 			case '/':token.type = SLASH; break;
+			case '%':token.type = MOD;break;
 			case '(':token.type = LPAREN; break;
 			case ')':token.type = RPAREN; break;
 			case '{':token.type = LBRACE; break;
 			case '}':token.type = RBRACE; break;
 			case ',':token.type = COMMA; break;
+			case '.':token.type = PERIOD; break;
 			default:assert(0); break;
 			}
 			pushtoken = true;
@@ -312,13 +313,11 @@ void Tokenizer::error(const std::string& message, int col, int errorType){
 		 oss<< col << ":";
 	}
 	oss << message << "\n" << curLine << std::endl;
-	if (errorType == 0)
+	if (errorType == SYNTAXERROR)
  		throw SyntaxError(oss.str());
-	else if (errorType == 1)
+	else if (errorType == SYMBOLERROR)
 		throw SymbolError(oss.str());
-	else if (errorType == 2)
-		throw TypeError(oss.str());
-	else if (errorType == 3)
+	else if (errorType == TOKENERROR)
 		throw TokenError(oss.str());
 	else assert(0);
 }

@@ -6,28 +6,31 @@
 
 #include "Object.h"
 
+bool mark(Object* obj);
+
 class ObjectPool{
 private:
-	std::vector<void*> objs;
-	size_t nclass;
+	std::vector<ClsObj*> objs;
 public:
-	ObjectPool() :nclass(0) {}
+	ObjectPool() {}
 	~ObjectPool(){
 		for (auto &pobj : objs){
 			delete pobj;
 		}
 	}
 	void collect(){
-		/*for (int i = nclass; i++; i < objs.size()){
-			delete objs[i];
-		}*/
+		int j = 0;
+		for (size_t i = 0; i < objs.size(); i++){
+			if (1){
+
+			}
+			else{
+				delete objs[i];
+			}
+		}
+		objs.resize(j);
 	}
-	int putCls(void* pcls){
-		objs.push_back(pcls);
-		nclass++;
-		return (int)objs.size()-1;
-	}
-	int putObj(void* pobj){
+	int putObj(ClsObj* pobj){
 		objs.push_back(pobj);
 		return (int)objs.size()-1;
 	}

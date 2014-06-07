@@ -5,6 +5,7 @@
 #include "Object.h"
 #include "OpCode.h"
 #include "SymbolTable.h"
+#include <iostream>
 
 const char* errorMsg[] = {
 	"symbol already exist",
@@ -68,5 +69,7 @@ void parseFile(void* state, const char* fileName){
 	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,
 	vm->byteCodePtr,vm->objectPoolPtr);
 	parser->program();
-	vm->run();
+	
+		vm->run("2.txt");
+	
 }

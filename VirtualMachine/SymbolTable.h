@@ -33,15 +33,18 @@ public:
 	std::vector<Symbol>&& getSymbols(){
 		return std::move(symVec);
 	}
-	SymbolTable(SymPtr nextSymTab,int n) :next(nextSymTab),isGlobal(false),nLocalVars(n) {}
+	SymbolTable(SymPtr nextSymTab,int n) :next(nextSymTab), isGlobal(false), nLocalVars(n) {}
 	SymbolTable():isGlobal(true),nLocalVars(0) {
 	}
 	~SymbolTable() {
 		if (isGlobal){
 			for (auto& symbol : symVec){
-				Object& obj=symbol.obj;
-				if (obj.type==FUNOBJ)
+				Object& obj = symbol.obj;
+				if (obj.type == FUNOBJ)
 					delete obj.value.funObj;
+				else if (obj.type == CLSTYPE){
+					delete obj.value.clsType;
+				}
 			}
 		}
 	}

@@ -49,7 +49,7 @@ class Parser{
 public:
 	Parser(Tokenizer* t,SymPtr tab,std::shared_ptr<StringPool> sp,ByteCodePtr bcp,std::shared_ptr<ObjectPool> op):byteCodePtr(bcp),
 		byteCode(&byteCodePtr->v),stringPoolPtr(sp),curClsType(NULL),isClass(false),isClassFunction(false),clsIndex(0),objectPoolPtr(op),
-		tokenizer(t), symTab(tab), debugLine(0){
+		tokenizer(t), symTab(tab), isClassConstructor(false), debugLine(0) {
 	}
 	~Parser() ;
 	ByteCodePtr getByteCodePtr(){
@@ -110,9 +110,10 @@ private:
 	ClsType* curClsType;
 	bool isClass;
 	bool isClassFunction;
+	bool isClassConstructor;
 	size_t clsIndex;
-
 	int debugLine;
+
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 	std::unordered_map<std::string,int> sharedStrings;
 	LoopLabelPtr loopLabelPtr;

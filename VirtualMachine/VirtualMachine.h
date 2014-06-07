@@ -26,7 +26,7 @@ public:
 	~VirtualMachine() {}
 	VirtualMachine(const VirtualMachine&) = delete;
 	VirtualMachine& operator=(const VirtualMachine&) = delete;
-	int execute(std::vector<char> &byteCodes, int base, size_t byteCodePos);
+	int execute(std::vector<char> &byteCodes, size_t base, size_t byteCodePos);
 	void dump(std::vector<char> &byteCodes, std::ofstream& ofs);
 	void run();
 	void run(const std::string& fileName);
@@ -54,6 +54,7 @@ public:
 			(*objs)[i] = stack[framePointer + i];
 		}
 	}
+	std::string getStackTrace();
 	void throwError(const std::string msg, int type);
 public:
 	SymPtr symTab;

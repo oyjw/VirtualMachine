@@ -32,14 +32,14 @@ static bool strEq( StrObj* const & s1,StrObj* const & s2){
 	return (*s1).str == (*s2).str;
 }
 
-class FunObj {
-public:
+struct FunObj {
 	std::string functionName;
 	std::vector<char> bytes;
 	int funType;
 	int nArgs;
 	FunObj():funType(0),nArgs(0) {}
 };
+
 class ClsType;
 class ClsObj;
 
@@ -49,6 +49,14 @@ typedef Object (*cFunc)(void* state);
 struct CFunObj{
 	cFunc fun;
 	std::string functionName;
+};
+
+struct Method{
+	union {
+		FunObj* funObj;
+		CFunObj* cFunObj;
+	};
+	ClsObj* self;
 };
 
 struct Object{
@@ -61,6 +69,7 @@ struct Object{
 		CFunObj* cFunObj;
 		ClsObj* clsObj;
 		ClsType* clsType;
+		Method method;
 	} value;
 };
 
@@ -73,7 +82,7 @@ public:
 
 class ClsObj {
 public:
-	ClsType* type;
+	ClsType* clsType;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
 	ClsObj() {}
 };
@@ -117,12 +126,6 @@ namespace std{
 		}
 	};
 }
-
-
-struct Field{
-	bool isStatic;
-	Object obj;
-};
 
 struct Symbol{
 	Object obj;
