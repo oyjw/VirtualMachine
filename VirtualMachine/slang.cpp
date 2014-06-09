@@ -5,6 +5,7 @@
 #include "Object.h"
 #include "OpCode.h"
 #include "SymbolTable.h"
+#include "StringPool.h"
 #include <iostream>
 
 const char* errorMsg[] = {
@@ -19,7 +20,12 @@ ClsType* defineClass(void* state, char* className){
 	return NULL;
 }
 
-int defineMethod(void* state, char* funcName, cFunc func){
+int defineClassMethod(void* state, ClsType* cls, char* funcName, cFunc func, int nArgs){
+
+	return 0;
+}
+
+int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
 	VirtualMachine *vm = new VirtualMachine();
 	if (vm->symTab->isSymExistLocal(funcName)){
 		return SYMBOLEXIST;
@@ -44,9 +50,44 @@ void getArgs(void* state, int *len, Object** objects){
 	vm->getArgs(len, objects);
 }
 
-static Object subStr(void* state, Object self){
+static Object subStr(void* state){
 	VirtualMachine *vm = new VirtualMachine();
-	
+	int len;
+	Object* objs;
+	getArgs(state, &len, &objs);
+
+
+}
+
+static Object toStr(void* state){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	Object result;
+	result.type = STROBJ;
+	int len;
+	Object* objs;
+	getArgs(state, &len, &objs);
+	Object& o = objs[0];
+	assert(len == 1);
+	switch (o.type){
+		case NUMOBJ:{
+			char buf[100];
+			o.value.strObj = vm->stringPoolPtr->putString(itoa(o.value.numval, buf, 10));
+		}
+		case STROBJ:{
+			return o;
+		}
+		default:assert(0);
+	}
+	return o;
+}
+
+static Object strFind(void* state){
+	VirtualMachine *vm = new VirtualMachine();
+	int len;
+	Object* objs;
+	getArgs(state, &len, &objs);
+
+
 }
 
 Object functionCall(void* state, const char* name, int len, Object* object){

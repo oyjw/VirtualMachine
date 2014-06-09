@@ -31,4 +31,10 @@ class SymbolError :public std::exception
 public:
 	SymbolError(const std::string& msg) :exception(msg.c_str()) {}
 };
+
+class ArgumentError :public std::exception
+{
+public:
+	ArgumentError(const std::string& msg) :exception(msg.c_str()) {}
+};
 #endif

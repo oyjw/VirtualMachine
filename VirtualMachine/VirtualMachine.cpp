@@ -19,6 +19,28 @@ VirtualMachine::VirtualMachine():threshold(100), top(0), framePointer(0), symTab
 	callInfoPtr->funcName = "main";
 }
 
+void VirtualMachine::checkCallable(Object& obj){
+	std::string msg;
+	if (obj.type != CLSTYPE && !(obj.type & METHOD) && obj.type != FUNOBJ && obj.type != CFUNOBJ){
+		throwError("not callable",TYPEERROR);
+	}
+}
+
+void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
+	char buf[100];
+	std::string msg;
+	if (actualNArgs < nArgs){
+		msg = itoa(nArgs - actualNArgs, buf, 10);
+		msg = "missing " + msg + " arguments";
+		throwError(msg, ARGUMENTERROR);
+	}
+	else if (nArgs < actualNArgs){
+		msg = itoa(actualNArgs - nArgs, buf, 10);
+		msg = "excess number of arguments: " + msg +" given";
+		throwError(msg, ARGUMENTERROR);
+	}
+}
+
 void printFunc(Object& obj){
 	switch (obj.type){
 		case NUMOBJ:std::cout << (int)obj.value.numval << std::endl; break;
@@ -109,8 +131,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					collect();
 					std::string& leftStr = l.value.strObj->str;
 					std::string& rightStr = r.value.strObj->str;
-					int index = stringPoolPtr->putString(leftStr+rightStr);
-					l.value.strObj = stringPoolPtr->getStrObj(index);
+					l.value.strObj = stringPoolPtr->putString(leftStr+rightStr);
 				}
 				else{
 					throwError("operands don't support + operator",TYPEERROR);
@@ -230,57 +251,9 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case CALLFUNC:{
 				int nargs = byteCodes[byteCodePos++];
 				Object &obj = stack[ top - nargs - 1 ];
+				checkCallable(obj);
 				int newBase = top - nargs;
-				if (obj.type & FUNOBJ && obj.type & METHOD){
-					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-					callInfoPtr->funcName = obj.value.funObj->functionName;
-					FunObj* function = obj.value.method.funObj;
-					obj.type = CLSOBJ;
-					obj.value.clsObj = obj.value.method.self;
-					int base = newBase - 1;
-					int nResult = execute(function->bytes, base, 0);
-					if (nResult == 0){
-						obj.type == NILOBJ;
-					}
-					else{
-						obj = stack[top - 1];
-					}
-					callInfoPtr = callInfoPtr->next;
-				}
-				else if (obj.type & CFUNOBJ && obj.type & METHOD){
-					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-					callInfoPtr->funcName = obj.value.cFunObj->functionName;
-					CFunObj* function = obj.value.method.cFunObj;
-					obj.type = CLSOBJ;
-					obj.value.clsObj = obj.value.method.self;
-					framePointer = newBase - 1;
-					Object result = function->fun((void*)this);
-					obj = result;
-					callInfoPtr = callInfoPtr->next;
-				}
-				else if (obj.type == FUNOBJ){
-					callInfoPtr = std::shared_ptr<CallInfo>(new CallInfo(callInfoPtr));
-					callInfoPtr->funcName = obj.value.funObj->functionName;
-					if (callInfoPtr->funcName == "t0")
-						std::cout << getStackTrace() << std::endl;
-					int nResult = execute(obj.value.funObj->bytes, newBase, 0);
-					if (nResult == 0){
-						obj.type == NILOBJ;
-					}
-					else{
-						stack[newBase - 1] = stack[top-1];
-					}
-					callInfoPtr = callInfoPtr->next;
-				}
-				else if (obj.type == CFUNOBJ){
-					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-					callInfoPtr->funcName = obj.value.cFunObj->functionName;
-					framePointer = newBase;
-					Object result = obj.value.cFunObj->fun((void*)this);
-					obj = result;
-					callInfoPtr = callInfoPtr->next;
-				}
-				else if (obj.type == CLSTYPE){
+				if (obj.type == CLSTYPE){
  					nobjs++;
 					collect();
 					Object newObj;
@@ -292,25 +265,67 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					newObj.value.clsObj = clsObj;
 					obj = newObj;
 					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
-					auto iter = newObj.value.clsObj->clsType->clsAttrs.find(strObj);
-					if (iter != newObj.value.clsObj->clsType->clsAttrs.end()){
+					auto& map = newObj.value.clsObj->clsType->clsAttrs;
+					auto iter = map.find(strObj);
+					if (iter != map.end()){
 						callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
 						int base = top - nargs - 1;
 						if (iter->second.type == FUNOBJ){
+							checkArgs(top - base, iter->second.value.funObj->nArgs);
 							callInfoPtr->funcName = iter->second.value.funObj->functionName;
 							execute(iter->second.value.funObj->bytes, base, 0);
 						}
 						else{
+							checkArgs(top - base, iter->second.value.cFunObj->nArgs);
 							callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
 							framePointer = base;
 							iter->second.value.cFunObj->fun((void*)this);
 						}
 						callInfoPtr = callInfoPtr->next;
 					}
+					top = newBase;
+					stack.resize(top);
+					break;
+				}
+				callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
+				int base = 0;
+				Object func = obj;
+				if (obj.type & METHOD){
+					base = newBase - 1;
+					callInfoPtr->funcName = obj.type & FUNOBJ ? obj.value.method.funObj->functionName:
+						obj.value.method.cFunObj->functionName;
+					obj.type = CLSOBJ;
+					obj.value.clsObj = obj.value.method.self;
+				}
+				else{
+					base = newBase;
+					callInfoPtr->funcName = obj.type & FUNOBJ ? obj.value.funObj->functionName:
+						obj.value.cFunObj->functionName;
+				}
+				if (func.type & FUNOBJ){
+					FunObj* function = func.type& METHOD?func.value.method.funObj: func.value.funObj;
+					checkArgs(top - base, function->nArgs);
+ 					int nResult = execute(function->bytes, base, 0);
+					if (nResult == 0){
+						stack[newBase - 1].type = NILOBJ;
+					}
+					else{
+						stack[newBase - 1] = stack[top-1];
+					}
+				}
+				else if (func.type & CFUNOBJ){
+					CFunObj* cFunction = func.type& METHOD?func.value.method.cFunObj: func.value.cFunObj;
+					checkArgs(top - base, cFunction->nArgs);
+					framePointer = base;
+					Object result = cFunction->fun((void*)this);
+					stack[newBase - 1] = result;
 				}
 				else assert(0);
+				callInfoPtr = callInfoPtr->next;
+				
 				top = newBase;
 				stack.resize(top);
+				
 				break;
 			}
 			case RETCODE:{
@@ -350,18 +365,18 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					}
 				}
 				else{
-					auto& map = obj.value.clsObj->clsType->clsAttrs;
+					auto& map = obj.value.clsObj->attrs;
 					iter = map.find(strObj);
 					if (iter == map.end()){
-						map = obj.value.clsObj->attrs;
+						map = obj.value.clsObj->clsType->clsAttrs;
 						iter = map.find(strObj);
 						if (iter == map.end()){
 							throwError("object doesn't have such attribute",TYPEERROR);
+						}
+						else{
+							if (iter->second.type == FUNOBJ || iter->second.type == CFUNOBJ)
+								createMethod = true;
 						}	
-					}
-					else{
-						if (iter->second.type == FUNOBJ || iter->second.type == CFUNOBJ)
-							createMethod = true;
 					}
 				}
 				if (createMethod){

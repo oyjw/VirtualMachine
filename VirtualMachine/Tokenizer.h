@@ -21,9 +21,10 @@ public:
 
 #define TYPEERROR 0
 #define ATTRERROR 1
-#define SYNTAXERROR 2
-#define SYMBOLERROR 3
-#define TOKENERROR 4
+#define ARGUMENTERROR 2
+#define SYNTAXERROR 3
+#define SYMBOLERROR 4
+#define TOKENERROR 5
 
 class Tokenizer{
 public:

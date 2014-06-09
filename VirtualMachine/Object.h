@@ -35,9 +35,8 @@ static bool strEq( StrObj* const & s1,StrObj* const & s2){
 struct FunObj {
 	std::string functionName;
 	std::vector<char> bytes;
-	int funType;
 	int nArgs;
-	FunObj():funType(0),nArgs(0) {}
+	FunObj():nArgs(0) {}
 };
 
 class ClsType;
@@ -47,8 +46,10 @@ struct Object;
 typedef Object (*cFunc)(void* state);
 
 struct CFunObj{
+	int nArgs;
 	cFunc fun;
 	std::string functionName;
+	CFunObj() :nArgs(0), fun(NULL) {}
 };
 
 struct Method{

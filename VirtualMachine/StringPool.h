@@ -42,10 +42,10 @@ public:
 		builtIns.insert(std::make_pair("__init__",sindex));
 		return sindex;
 	}
-	int putString(const std::string &str){
+	StrObj* putString(const std::string &str){
 		StrObj *sobj = new StrObj(str);
 		strings.push_back(sobj);
-		return (int)strings.size()-1;
+		return sobj;
 	}
 	StrObj* getStringConstant(const std::string& str){
 		auto iter = builtIns.find(str);

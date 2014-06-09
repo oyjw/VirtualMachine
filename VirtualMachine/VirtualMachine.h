@@ -40,21 +40,15 @@ public:
 	}
 	void getArgs(int* len, Object** objs){
 		int tmp = top - framePointer;
-		if (tmp < *len){
-
-		}
-		else if (tmp > *len){
-
-		}
-		else{
-			*len = tmp;
-		}
+		*len = tmp;
 		*objs = new Object[*len];
 		for (int i = 0; i < *len; ++i){
 			(*objs)[i] = stack[framePointer + i];
 		}
 	}
 	std::string getStackTrace();
+	void checkArgs(int, int);
+	void checkCallable(Object&);
 	void throwError(const std::string msg, int type);
 public:
 	SymPtr symTab;
