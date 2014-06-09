@@ -2,6 +2,7 @@
 #define _PARSER_H_
 #include <vector>
 #include <memory>
+#include <unordered_set>
 #include "Object.h"
 #define WORDSIZE 2
 class SymbolTable;
@@ -96,6 +97,7 @@ public:
 	std::pair<bool, int> parseIden(Token* token);
 private:
 	int addSymbol();
+	int getBuiltInStr(const std::string& str);
 	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);
@@ -108,6 +110,7 @@ private:
 	SymPtr symTab;
 	//std::vector<ClsType> *clsData;
 	ClsType* curClsType;
+	std::unordered_set<std::string> classFunctions;
 	bool isClass;
 	bool isClassFunction;
 	bool isClassConstructor;

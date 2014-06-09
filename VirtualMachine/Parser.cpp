@@ -212,18 +212,13 @@ void Parser::assignStmt(){
 			objLvalue = true;
 		}
 		else{
-			tokenizer->advance();
 			std::pair<bool,int> pair= symTab->findSym(token->str);
+			if (!pair.first){
+				tokenizer->error("unknown symbol",token->num);
+			}
 			n = pair.second;
 			global = pair.first;
-			if (!pair.first){
-				SymPtr sp=symTab;
-				while (sp->getNext() != NULL){
-					sp = sp->getNext();
-				}
-				n=sp->putSym(token->str);
-				global=true;
-			}
+			tokenizer->advance();
 		}
 	}
 	
@@ -413,20 +408,29 @@ void Parser::function(){
 	Token *token = tokenizer->getToken();
 	std::string functionName = token->str;
 	int index = 0;
-	if (isClass && token->type == INITMETHOD){
-		isClassConstructor = true;
-		tokenizer->advance();
-		if (symTab->isSymExistLocal(token->str)){
+	if (isClass){
+		auto iter = classFunctions.find(functionName);
+		if (iter != classFunctions.end())
 			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
+		else{
+			classFunctions.insert(functionName);
 		}
-		index = symTab->putSym(token->str);
+		if (token->type == INITMETHOD)
+			isClassConstructor = true;
+		tokenizer->advance();
 	}
 	else{
 		index = addSymbol();
 	}
 	StrObj* strObj = NULL;
 	if (isClass){
-		int sindex = getSharedString(token->str);
+		int sindex = 0;
+		if(isClassConstructor){
+			sindex = getBuiltInStr(token->str);
+		}
+		else{
+			sindex = getSharedString(token->str);
+		}
 		strObj = stringPoolPtr->getStrObj(sindex);
 	}
 	match(LPAREN);
@@ -657,6 +661,19 @@ void Parser::continueStmt(){
 	pushWord(0);
 }
 
+int Parser::getBuiltInStr(const std::string& str){
+	auto iter = sharedStrings.find(str);
+	int index = 0;
+	if (iter == sharedStrings.end()){
+		index = stringPoolPtr->putBuiltInStr(str);
+		sharedStrings.insert(std::make_pair(str,index));
+	}
+	else
+		index = iter->second;
+	assert(index>=0 && index<=SHRT_MAX);
+	return index;
+}
+
 int Parser::getSharedString(const std::string& str){
 	auto iter = sharedStrings.find(str);
 	int index = 0;
@@ -678,6 +695,7 @@ void Parser::classDefinition(){
 	curClsType = cls;
 	curClsType->clsName = clsName;
 	isClass = true;
+	classFunctions.clear();
 	Object object;
 	object.type = CLSTYPE;
 	object.value.clsType = cls;
@@ -695,7 +713,6 @@ void Parser::classDefinition(){
 			break;
 	}
 	match(RPAREN);
-	symTab = std::make_shared<SymbolTable>(symTab,0);
 
 	match(LBRACE);
 	token = tokenizer->getToken();
@@ -715,7 +732,6 @@ void Parser::classDefinition(){
 		token = tokenizer->getToken();
 	}
 	tokenizer->advance();
-	symTab = symTab->getNext();
 
 	curClsType = NULL;
 	isClass = false;

@@ -34,7 +34,7 @@ public:
 	int getlinenum() { return line; }
 	const std::string& getFileName() {return fileName; }
 	void expectedError(int,Token* token);
-	void error(const std::string& message, int col = 0, int errorType = 0);
+	void error(const std::string& message, int col = 0, int errorType = SYNTAXERROR);
 	bool isAssignStmt;
 private:
 	void scan();

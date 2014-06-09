@@ -43,6 +43,12 @@ public:
 				if (obj.type == FUNOBJ)
 					delete obj.value.funObj;
 				else if (obj.type == CLSTYPE){
+					auto &map = obj.value.clsType->clsAttrs;
+					for (auto iter = map.begin(); iter != map.end(); ++iter){
+						if (iter->second.type == FUNOBJ){
+							delete iter->second.value.funObj;
+						}
+					}
 					delete obj.value.clsType;
 				}
 			}

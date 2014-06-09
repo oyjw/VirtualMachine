@@ -13,8 +13,6 @@ private:
 	size_t constants;
 public:
 	StringPool() :constants(0) {
-		int sindex = putStringConstant("__init__");
-		builtIns.insert(std::make_pair("__init__",sindex));
 	}
 	~StringPool(){
 		for (auto &sobj : strings){
@@ -38,6 +36,11 @@ public:
 		strings.push_back(sobj);
 		constants++;
 		return (int)strings.size()-1;
+	}
+	int putBuiltInStr(const std::string& str){
+		int sindex = putStringConstant("__init__");
+		builtIns.insert(std::make_pair("__init__",sindex));
+		return sindex;
 	}
 	int putString(const std::string &str){
 		StrObj *sobj = new StrObj(str);
