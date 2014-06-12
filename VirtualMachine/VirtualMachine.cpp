@@ -15,7 +15,7 @@
 
 
 VirtualMachine::VirtualMachine():threshold(100), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
-	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo) {
+	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo), listCls(NULL), dictCls(NULL) {
 	callInfoPtr->funcName = "main";
 }
 
@@ -30,12 +30,12 @@ void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
 	char buf[100];
 	std::string msg;
 	if (actualNArgs < nArgs){
-		msg = itoa(nArgs - actualNArgs, buf, 10);
+		msg = std::to_string(nArgs - actualNArgs);
 		msg = "missing " + msg + " arguments";
 		throwError(msg, ARGUMENTERROR);
 	}
 	else if (nArgs < actualNArgs){
-		msg = itoa(actualNArgs - nArgs, buf, 10);
+		msg = std::to_string(actualNArgs - nArgs);
 		msg = "excess number of arguments: " + msg +" given";
 		throwError(msg, ARGUMENTERROR);
 	}
@@ -208,7 +208,6 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			}
 			case OP_NOT:{
 				Object& obj=stack[top-1];
-				int steps = getWord(byteCodes,byteCodePos);
 				if (boolValue(obj)){
 					obj.value.boolval = true;
 				}		
@@ -417,6 +416,14 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				stack.resize(top);
 				break;
 			}
+			case CREATELIST:{
+				
+				break;
+			}
+			case CREATEDICT:{
+				
+				break;
+			}
 			default:assert(0);
 		}
 	}
@@ -441,7 +448,7 @@ void VirtualMachine::compute(int opcode){
 		std::ostringstream oss;
 		throw TypeError(oss.str());
 	}
-	float result;
+	float result = 0.0;
 	switch (opcode){
 		case OP_SUB:result=l.value.numval - r.value.numval; break;
 		case OP_MUL:result=l.value.numval * r.value.numval; break;
@@ -460,7 +467,7 @@ void VirtualMachine::compare(int opcode){
 		std::ostringstream oss;
 		throw TypeError(oss.str());
 	}
-	bool b;
+	bool b = false;
 	switch (opcode){
 		case OP_EQ:b=l.value.numval == r.value.numval; break;
 		case OP_NOTEQ:b=l.value.numval != r.value.numval; break;
@@ -627,6 +634,14 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1 << "\tSETATTR\t"  << std::endl;
 				break;
 			}
+			case CREATELIST:{
+				ofs << byteCodePos-1 << "\tCREATELIST\t"  << std::endl;
+				break;
+			}
+			case CREATEDICT:{
+				ofs << byteCodePos-1 << "\tCREATEDICT\t"  << std::endl;
+				break;
+			}
 			default:assert(0);
 			}
 	}
@@ -690,6 +705,7 @@ bool VirtualMachine::pushFunObj(const std::string& symbol){
 	}
 	stack.push_back(symTab->getObj(p.second));
 	top++;
+	return true;
 }
 
 std::string VirtualMachine::getStackTrace(){

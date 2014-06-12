@@ -76,6 +76,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="List.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Parser.cpp" />
     <ClCompile Include="slang.cpp" />
@@ -86,6 +87,7 @@
   <ItemGroup>
     <ClInclude Include="common.h" />
     <ClInclude Include="Exceptions.h" />
+    <ClInclude Include="List.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="OpCode.h" />

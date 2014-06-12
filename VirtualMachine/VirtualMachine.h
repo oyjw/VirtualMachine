@@ -55,6 +55,8 @@ public:
 	std::shared_ptr<StringPool> stringPoolPtr;
 	ByteCodePtr byteCodePtr;
 	std::shared_ptr<ObjectPool> objectPoolPtr;
+	ClsType* listCls;
+	ClsType* dictCls;
 private:
 	bool boolValue(Object& obj);
 	void collect();

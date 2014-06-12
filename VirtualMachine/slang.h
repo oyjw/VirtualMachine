@@ -10,8 +10,8 @@ extern "C" {
 int defineMethod(void* state,cFunc func);
 void* newState();
 void parseFile(void* state, const char* fileName);
-
-
+void getArgs(void* state, int *len, Object** objects);
+ClsType* defineClass(void* state, char* className);
 #ifdef __cplusplus
 }
 #endif

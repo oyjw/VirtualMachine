@@ -71,7 +71,7 @@ static Object toStr(void* state){
 	switch (o.type){
 		case NUMOBJ:{
 			char buf[100];
-			o.value.strObj = vm->stringPoolPtr->putString(itoa(o.value.numval, buf, 10));
+			o.value.strObj = vm->stringPoolPtr->putString(std::to_string(o.value.numval));
 		}
 		case STROBJ:{
 			return o;

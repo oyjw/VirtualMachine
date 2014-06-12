@@ -4,15 +4,16 @@
 #include <vector>
 #include <unordered_map>
 
+#define NILOBJ  0
 #define NUMOBJ  1
-#define STROBJ  1<<1
-#define FUNOBJ  1<<2
-#define CFUNOBJ 1<<3
-#define BOOLOBJ 1<<4
-#define NILOBJ  1<<5
-#define CLSOBJ  1<<6
-#define CLSTYPE 1<<7
-#define METHOD  1<<8
+#define STROBJ  2
+#define CLSOBJ  3
+#define CLSTYPE 4
+#define BOOLOBJ 5
+#define USERDATA 6
+#define FUNOBJ  1<<3
+#define CFUNOBJ 1<<4
+#define METHOD  1<<5
 
 
 
@@ -71,6 +72,7 @@ struct Object{
 		ClsObj* clsObj;
 		ClsType* clsType;
 		Method method;
+		void* userData;
 	} value;
 };
 

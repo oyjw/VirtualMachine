@@ -10,8 +10,6 @@
 #include <climits>
 
 Parser::~Parser() {
-	if (curClsType != NULL)
-		delete curClsType;
 	delete tokenizer;
 }
 
@@ -45,6 +43,36 @@ bool Parser::parseValue(int& type, int& index){
 		index = getSharedString(token->str);
 		type = STRING;
 	}
+	else if (token->type == LBRACKET){
+		token = tokenizer->getToken();
+		if (token->type != RBRACKET){
+			while (1){
+				orExpr();
+				token = tokenizer->getToken();
+				if (token->type != COMMA)
+					break;
+				tokenizer->advance();
+			}
+		}
+		match(RBRACKET);
+		type = LBRACKET;
+	}
+	else if (token->type == LBRACE){
+		token = tokenizer->getToken();
+		if (token->type != RBRACE){
+			while (1){
+				orExpr();
+				match(COLON);
+				orExpr();
+				token = tokenizer->getToken();
+				if (token->type != COMMA)
+					break;
+				tokenizer->advance();
+			}
+		}
+		match(RBRACE);
+		type = LBRACE;
+	}
 	return false;
 }
 
@@ -58,6 +86,14 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 		case STRING:{
 			byteCode->push_back((char)PUSHSTRING); 
 			pushWord(index); 
+			break;
+		}
+		case LBRACKET:{
+			byteCode->push_back((char)CREATELIST);
+			break;
+		}
+		case LBRACE:{
+			byteCode->push_back((char)CREATEDICT);
 			break;
 		}
 		default: assert(0);
@@ -143,7 +179,6 @@ void Parser::funcArgs(Token* function){
 			if(token->type != COMMA)
 				break;
 			tokenizer->advance();
-			token = tokenizer->getToken();
 		}
 	}
 	match(RPAREN);
@@ -308,6 +343,9 @@ void Parser::basic(){
 		match(RPAREN);
 	}
 	else if (token->type == STRING){
+		rvalue();
+	}
+	else if (token->type == LBRACKET){
 		rvalue();
 	}
 	else {
@@ -703,14 +741,22 @@ void Parser::classDefinition(){
 	clsIndex = index;
 	match(LPAREN);
 	Token* token = tokenizer->getToken();
+	bool firstIden = true;
 	while(token->type != RPAREN){
+		if (firstIden){
+			firstIden = false;
+		}
+		else{
+			if (token->type != COMMA)
+				break;
+			tokenizer->advance();
+			token = tokenizer->getToken();
+		}
 		match(IDEN);
 		if (!symTab->isSymExistLocal(token->str)){
 			tokenizer->error("class not found",0,SYMBOLERROR);
 		}
 		token = tokenizer->getToken();
-		if (token->type != COMMA)
-			break;
 	}
 	match(RPAREN);
 
