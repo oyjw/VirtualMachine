@@ -69,7 +69,7 @@ struct Object{
 		StrObj* strObj;
 		FunObj* funObj;
 		CFunObj* cFunObj;
-		ClsObj* clsObj;
+		ClsObj clsObj;
 		ClsType* clsType;
 		Method method;
 		void* userData;
@@ -83,11 +83,12 @@ public:
 	ClsType() {}
 };
 
-class ClsObj {
-public:
+struct ClsObj {
 	ClsType* clsType;
-	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
-	ClsObj() {}
+	union{
+		std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>* pAttrs;
+		void* data;
+	};
 };
 
 #include <cassert>

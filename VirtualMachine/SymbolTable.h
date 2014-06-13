@@ -42,11 +42,16 @@ public:
 				Object& obj = symbol.obj;
 				if (obj.type == FUNOBJ)
 					delete obj.value.funObj;
+				else if (obj.type == CFUNOBJ)
+					delete obj.value.cFunObj;
 				else if (obj.type == CLSTYPE){
 					auto &map = obj.value.clsType->clsAttrs;
 					for (auto iter = map.begin(); iter != map.end(); ++iter){
 						if (iter->second.type == FUNOBJ){
 							delete iter->second.value.funObj;
+						}
+						else if (iter->second.type == CFUNOBJ){
+							delete iter->second.value.cFunObj;
 						}
 					}
 					delete obj.value.clsType;

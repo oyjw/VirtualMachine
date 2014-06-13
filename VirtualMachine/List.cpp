@@ -16,10 +16,11 @@ Object listNew(void* state){
 		l->vec.push_back(objs[i]);
 	Object obj;
 	obj.type = USERDATA;
-		
+	
 	return obj;
 }
 
 void listInit(void* state){
-	defineClass(state, "list");
+	void* cls = defineClass(state, "list");
+	defineClassMethod(state, cls, "constructor", listNew, ANY);
 }
