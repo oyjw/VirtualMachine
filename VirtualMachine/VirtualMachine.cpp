@@ -252,19 +252,56 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				Object &obj = stack[ top - nargs - 1 ];
 				checkCallable(obj);
 				int newBase = top - nargs;
-				if (obj.type == CLSTYPE){
+				Object newObj;
+				if (obj.type & USERDATA && obj.type & CLSTYPE){
+					nobjs++;
+					collect();
+					StrObj* strObj = stringPoolPtr->getStringConstant("constructor");
+					auto& map = newObj.value.clsObj.clsType->clsAttrs;
+					auto iter = map.find(strObj);
+					assert(iter != map.end() && iter->second.type == CFUNOBJ);
+					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
+					int base = top - nargs - 1;
+					checkArgs(top - base, iter->second.value.cFunObj->nArgs);
+					callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
+					framePointer = base;
+					newObj = iter->second.value.cFunObj->fun((void*)this);
+					callInfoPtr = callInfoPtr->next;
+					obj = newObj;
+				}
+				else if (obj.type = CLSTYPE){
  					nobjs++;
 					collect();
-					Object newObj;
 					newObj.type = CLSOBJ;
-					ClsObj *clsObj = new ClsObj;
-					newObj.value.clsObj = clsObj;
-					objectPoolPtr->putObj(clsObj);
-					clsObj->clsType = obj.value.clsType;
-					newObj.value.clsObj = clsObj;
+					newObj.value.clsObj.clsType = obj.value.clsType;
+					newObj.value.clsObj.pAttrs = new 
 					obj = newObj;
 					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
 					auto& map = newObj.value.clsObj->clsType->clsAttrs;
+					auto iter = map.find(strObj);
+					if (iter != map.end()){
+						callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
+						int base = top - nargs - 1;
+						if (iter->second.type == FUNOBJ){
+							checkArgs(top - base, iter->second.value.funObj->nArgs);
+							callInfoPtr->funcName = iter->second.value.funObj->functionName;
+							execute(iter->second.value.funObj->bytes, base, 0);
+						}
+						else{
+							checkArgs(top - base, iter->second.value.cFunObj->nArgs);
+							callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
+							framePointer = base;
+							iter->second.value.cFunObj->fun((void*)this);
+						}
+						callInfoPtr = callInfoPtr->next;
+					}
+					top = newBase;
+					stack.resize(top);
+					break;
+				}
+				if (obj.type & CLSTYPE){
+					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
+					auto& map = newObj.value.clsObj.clsType->clsAttrs;
 					auto iter = map.find(strObj);
 					if (iter != map.end()){
 						callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);

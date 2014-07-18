@@ -11,9 +11,10 @@ extern "C" {
 #define ANY -1
 int defineMethod(void* state,cFunc func);
 void* newState();
+void freeState(void* state);
 void parseFile(void* state, const char* fileName);
 void getArgs(void* state, int *len, Object** objects);
-void* defineClass(void* state, char* className);
+ClsType* defineClass(void* state, char* className);
 int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nArgs);
 #ifdef __cplusplus
 }

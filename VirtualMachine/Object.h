@@ -7,13 +7,13 @@
 #define NILOBJ  0
 #define NUMOBJ  1
 #define STROBJ  2
-#define CLSOBJ  3
-#define CLSTYPE 4
-#define BOOLOBJ 5
-#define USERDATA 6
+#define BOOLOBJ 3
 #define FUNOBJ  1<<3
 #define CFUNOBJ 1<<4
 #define METHOD  1<<5
+#define USERDATA 1<<6
+#define CLSOBJ  1<<7
+#define CLSTYPE 1<<8
 
 
 
@@ -61,6 +61,21 @@ struct Method{
 	ClsObj* self;
 };
 
+class ClsType {
+public:
+	std::string clsName;
+	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
+	ClsType() {}
+};
+
+struct ClsObj {
+	ClsType* clsType;
+	union{
+		std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>* pAttrs;
+		void* data;
+	};
+};
+
 struct Object{
 	int type;
 	union{
@@ -76,20 +91,6 @@ struct Object{
 	} value;
 };
 
-class ClsType {
-public:
-	std::string clsName;
-	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
-	ClsType() {}
-};
-
-struct ClsObj {
-	ClsType* clsType;
-	union{
-		std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>* pAttrs;
-		void* data;
-	};
-};
 
 #include <cassert>
 namespace std{

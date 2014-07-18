@@ -16,18 +16,18 @@ const char* strError(int err){
 	return errorMsg[err-1];
 }
 
-void* defineClass(void* state, char* className){
+ClsType* defineClass(void* state, char* className){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	if (vm->symTab->isSymExistLocal(className))
 		return NULL;
 	int index = vm->symTab->putSym(className);
 	Object obj;
-	obj.type = CLSTYPE;
+	obj.type = CLSTYPE | USERDATA;
 	ClsType* clsType = new ClsType;
 	clsType->clsName = className;
 	obj.value.clsType = clsType;
 	vm->symTab->putObj(index, obj);
-	return (void*)clsType;
+	return clsType;
 }
 
 int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nArgs){
@@ -53,6 +53,10 @@ int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
 void* newState(){
 	VirtualMachine *vm = new VirtualMachine();
 	return (void*)vm;
+}
+
+void freeState(void* state){
+	delete state;
 }
 
 void getArgs(void* state, int *len, Object** objects){
