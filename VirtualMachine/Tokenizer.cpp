@@ -93,7 +93,7 @@ void Tokenizer::scan(){
 				token.str += c;
 			}
 			else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c=='(' || c== ')' || c=='{' || c=='}' ||
-				c == ',' || c == '.'){
+				c == ',' || c == '.' || c == '[' || c == ']' ){
 				state = 4;
 				readchar = false;
 			}
@@ -188,6 +188,8 @@ void Tokenizer::scan(){
 			case '%':token.type = MOD;break;
 			case '(':token.type = LPAREN; break;
 			case ')':token.type = RPAREN; break;
+			case '[':token.type = LBRACKET; break;
+			case ']':token.type = RBRACKET; break;
 			case '{':token.type = LBRACE; break;
 			case '}':token.type = RBRACE; break;
 			case ',':token.type = COMMA; break;

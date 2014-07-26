@@ -116,6 +116,7 @@ private:
 	bool isClassConstructor;
 	size_t clsIndex;
 	int debugLine;
+	int nListArgs;
 
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 	std::unordered_map<std::string,int> sharedStrings;

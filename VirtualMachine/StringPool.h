@@ -9,10 +9,12 @@
 class StringPool{
 private:
 	std::unordered_map<std::string,int> builtIns;
+	std::unordered_map<std::string,int> sharedStrings;
 	std::vector<StrObj*> strings;
 	size_t constants;
 public:
 	StringPool() :constants(0) {
+		putBuiltInStr("constructor");
 	}
 	~StringPool(){
 		for (auto &sobj : strings){
@@ -35,11 +37,13 @@ public:
 		StrObj *sobj = new StrObj(str);
 		strings.push_back(sobj);
 		constants++;
-		return (int)strings.size()-1;
+		sharedStrings.insert(std::make_pair(str,constants));
+		return (int)constants;
 	}
 	int putBuiltInStr(const std::string& str){
-		int sindex = putStringConstant("__init__");
-		builtIns.insert(std::make_pair("__init__",sindex));
+		
+		int sindex = putStringConstant(str);
+		builtIns.insert(std::make_pair(str,sindex));
 		return sindex;
 	}
 	StrObj* putString(const std::string &str){
@@ -48,7 +52,7 @@ public:
 		return sobj;
 	}
 	StrObj* getStringConstant(const std::string& str){
-		auto iter = builtIns.find(str);
+		auto iter = sharedStrings.find(str);
 		assert(iter != builtIns.end());
 		return strings[iter->second];
 	}

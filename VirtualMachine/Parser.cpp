@@ -44,10 +44,12 @@ bool Parser::parseValue(int& type, int& index){
 		type = STRING;
 	}
 	else if (token->type == LBRACKET){
+		nListArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACKET){
 			while (1){
 				orExpr();
+				nListArgs++;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -58,12 +60,14 @@ bool Parser::parseValue(int& type, int& index){
 		type = LBRACKET;
 	}
 	else if (token->type == LBRACE){
+		nListArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACE){
 			while (1){
 				orExpr();
 				match(COLON);
 				orExpr();
+				nListArgs+=2;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -88,14 +92,15 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 			pushWord(index); 
 			break;
 		}
-		case LBRACKET:{
-			byteCode->push_back((char)CREATELIST);
-			break;
-		}
 		case LBRACE:{
-			byteCode->push_back((char)CREATEDICT);
-			break;
+			if (nListArgs / 2 != 0){
+				tokenizer->error("the number of arguments is wrong", 0, ARGUMENTERROR);
+			}
 		}
+		case LBRACKET:
+			byteCode->push_back((char)CALLFUNC);
+			pushWord(nListArgs);
+			break;
 		default: assert(0);
 	}
 }
@@ -154,10 +159,8 @@ int Parser::parseSeleOp(){
 	else if (token->type == LBRACKET){
 		tokenizer->advance(1);
 		token = tokenizer->getToken();
-		/*match(NUM);
-		int index = getSharedString(token->str);
-		byteCode->push_back((char)PUSHSTRING);
-		pushWord(index);*/
+		orExpr();
+		match(RBRACKET);
 		n++;
 	}
 	return n;
@@ -290,7 +293,8 @@ void Parser::term2(){
 
 void Parser::factor(){
 	Token* token = tokenizer->getToken();
-	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS || token->type == STRING) {
+	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS || token->type == STRING ||
+		token->type == LBRACKET || token->type == LBRACE) {
 		basic();
 		factor2();
 	}
@@ -346,6 +350,12 @@ void Parser::basic(){
 		rvalue();
 	}
 	else if (token->type == LBRACKET){
+		auto pair = symTab->findSym("list");
+		if (pair.second == -1){
+			tokenizer->error("Unknown symbol",token->num,SYMBOLERROR);
+		}
+		byteCode->push_back(char(pair.first? PUSHGLOBAL: PUSHLOCAL));  
+		pushWord(pair.second); 
 		rvalue();
 	}
 	else {

@@ -6,6 +6,7 @@
 #include "OpCode.h"
 #include "SymbolTable.h"
 #include "StringPool.h"
+#include "List.h"
 #include <iostream>
 
 const char* errorMsg[] = {
@@ -22,7 +23,7 @@ ClsType* defineClass(void* state, char* className){
 		return NULL;
 	int index = vm->symTab->putSym(className);
 	Object obj;
-	obj.type = CLSTYPE | USERDATA;
+	obj.type = USERTYPE;
 	ClsType* clsType = new ClsType;
 	clsType->clsName = className;
 	obj.value.clsType = clsType;
@@ -31,7 +32,18 @@ ClsType* defineClass(void* state, char* className){
 }
 
 int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nArgs){
-
+	VirtualMachine *vm = new VirtualMachine();
+	int index = vm->stringPoolPtr->putBuiltInStr(funcName);
+	StrObj* pStrObj = vm->stringPoolPtr->getStrObj(index);
+	ClsType* clsType = (ClsType*)cls;
+	Object obj;
+	obj.type = CFUNOBJ;
+	CFunObj *pCFunObj = new CFunObj;
+	pCFunObj->functionName = funcName;
+	pCFunObj->fun = func;
+	pCFunObj->nArgs = nArgs;
+	obj.value.cFunObj = pCFunObj;
+	clsType->clsAttrs.insert(std::make_pair(pStrObj,obj));
 	return 0;
 }
 
@@ -52,6 +64,7 @@ int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
 
 void* newState(){
 	VirtualMachine *vm = new VirtualMachine();
+	listInit((void*)vm);
 	return (void*)vm;
 }
 

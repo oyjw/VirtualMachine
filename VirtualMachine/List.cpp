@@ -5,6 +5,7 @@
 
 struct list{
 	std::vector<Object> vec;
+	ClsType* type;
 };
 
 Object listNew(void* state){
@@ -15,10 +16,10 @@ Object listNew(void* state){
 	list* l = new list;
 	for (int i = 0; i < len; ++i)
 		l->vec.push_back(objs[i]);
+	l->type = vm->listCls;
 	Object obj;
-	obj.type = USERDATA | CLSOBJ;
-	obj.value.clsObj.clsType = vm->listCls;
-	obj.value.clsObj.data = (void*)l;
+	obj.type = USERTYPE;
+	obj.value.userData = (void*)l;
 	return obj;
 }
 

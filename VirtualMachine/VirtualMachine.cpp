@@ -21,7 +21,7 @@ VirtualMachine::VirtualMachine():threshold(100), top(0), framePointer(0), symTab
 
 void VirtualMachine::checkCallable(Object& obj){
 	std::string msg;
-	if (obj.type != CLSTYPE && !(obj.type & METHOD) && obj.type != FUNOBJ && obj.type != CFUNOBJ){
+	if (obj.type != CLSTYPE && !(obj.type & METHOD) && obj.type != FUNOBJ && obj.type != CFUNOBJ && obj.type != USERTYPE ){
 		throwError("not callable",TYPEERROR);
 	}
 }
@@ -252,56 +252,37 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				Object &obj = stack[ top - nargs - 1 ];
 				checkCallable(obj);
 				int newBase = top - nargs;
-				Object newObj;
-				if (obj.type & USERDATA && obj.type & CLSTYPE){
+  				if (obj.type == USERTYPE){
 					nobjs++;
 					collect();
+					Object newObj;
 					StrObj* strObj = stringPoolPtr->getStringConstant("constructor");
-					auto& map = newObj.value.clsObj.clsType->clsAttrs;
+					auto& map = this->listCls->clsAttrs;
 					auto iter = map.find(strObj);
 					assert(iter != map.end() && iter->second.type == CFUNOBJ);
 					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-					int base = top - nargs - 1;
-					checkArgs(top - base, iter->second.value.cFunObj->nArgs);
+					checkArgs(top - newBase, iter->second.value.cFunObj->nArgs);
 					callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
-					framePointer = base;
+					framePointer = newBase;
 					newObj = iter->second.value.cFunObj->fun((void*)this);
 					callInfoPtr = callInfoPtr->next;
-					obj = newObj;
-				}
-				else if (obj.type = CLSTYPE){
+					stack.push_back(newObj);
+					top++;
+					break;
+				} 
+				else if (obj.type == CLSTYPE){
  					nobjs++;
 					collect();
+					Object newObj;
 					newObj.type = CLSOBJ;
-					newObj.value.clsObj.clsType = obj.value.clsType;
-					newObj.value.clsObj.pAttrs = new 
+					ClsObj *clsObj = new ClsObj;
+					newObj.value.clsObj = clsObj;
+					objectPoolPtr->putObj(clsObj);
+					clsObj->clsType = obj.value.clsType;
+					newObj.value.clsObj = clsObj;
 					obj = newObj;
 					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
 					auto& map = newObj.value.clsObj->clsType->clsAttrs;
-					auto iter = map.find(strObj);
-					if (iter != map.end()){
-						callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-						int base = top - nargs - 1;
-						if (iter->second.type == FUNOBJ){
-							checkArgs(top - base, iter->second.value.funObj->nArgs);
-							callInfoPtr->funcName = iter->second.value.funObj->functionName;
-							execute(iter->second.value.funObj->bytes, base, 0);
-						}
-						else{
-							checkArgs(top - base, iter->second.value.cFunObj->nArgs);
-							callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
-							framePointer = base;
-							iter->second.value.cFunObj->fun((void*)this);
-						}
-						callInfoPtr = callInfoPtr->next;
-					}
-					top = newBase;
-					stack.resize(top);
-					break;
-				}
-				if (obj.type & CLSTYPE){
-					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
-					auto& map = newObj.value.clsObj.clsType->clsAttrs;
 					auto iter = map.find(strObj);
 					if (iter != map.end()){
 						callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
@@ -386,7 +367,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case GETATTR:{
 				Object &obj = stack[top-2];
 				Object &sobj = stack[top-1];
-				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
+				if (obj.type != CLSTYPE && obj.type != CLSOBJ && !(obj.type & LISTOBJ) && !(obj.type & DICTOBJ)){
 					throwError("target doesn't support getattr",TYPEERROR);
 				}
 				assert(sobj.type == STROBJ);
@@ -442,23 +423,16 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					throwError("target does't support setattr",TYPEERROR);
 				}
 				assert(sobj.type == STROBJ);
-				auto &map = obj.type == CLSTYPE? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
+				auto &map = 
+					obj.type == CLSTYPE? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
 				StrObj* strObj = sobj.value.strObj;
-				auto p = map.insert(std::make_pair(strObj,value));
+				auto &p = map.insert(std::make_pair(strObj,value));
 				if (!p.second ){
 					map.erase(p.first);
 					map.insert(p.first,std::make_pair(strObj,value));
 				}
 				top = top - 3;
 				stack.resize(top);
-				break;
-			}
-			case CREATELIST:{
-				
-				break;
-			}
-			case CREATEDICT:{
-				
 				break;
 			}
 			default:assert(0);
