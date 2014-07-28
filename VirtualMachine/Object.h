@@ -9,14 +9,13 @@
 #define STROBJ  2
 #define BOOLOBJ 3
 #define USERTYPE 4
+#define CLSOBJ  6
+#define CLSTYPE 7
 #define FUNOBJ  1<<3
 #define CFUNOBJ 1<<4
 #define METHOD  1<<5
-#define USERDATA 1<<6
-#define CLSOBJ  1<<7
-#define CLSTYPE 1<<8
-#define LISTOBJ 1<<9
-#define DICTOBJ 1<<10
+#define USEROBJ 1<<6
+#define LISTOBJ 1<<7
 
 
 
@@ -75,6 +74,11 @@ class ClsObj {
 public:
 	ClsType* clsType;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
+};
+
+struct UserData{
+	void* data;
+	ClsType* type;
 };
 
 struct Object{

@@ -18,8 +18,18 @@ Object listNew(void* state){
 		l->vec.push_back(objs[i]);
 	l->type = vm->listCls;
 	Object obj;
-	obj.type = USERTYPE;
+	obj.type = USEROBJ | LISTOBJ;
 	obj.value.userData = (void*)l;
+	return obj;
+}
+
+Object listGet(void* state){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	int len;
+	Object* objs;
+	getArgs(state, &len, &objs);
+	assert(len == 2);
+	list* l =(list*)objs[0].value.userData;
 	return obj;
 }
 
@@ -28,5 +38,6 @@ void listInit(void* state){
 	ClsType* cls = defineClass(state, "list");
 	vm->listCls = cls;
 	assert(cls != NULL);
-	defineClassMethod(state, cls, "constructor", listNew, ANY);
+	defineClassMethod(state, cls, "constructor", listNew, ANYARG);
+	defineClassMethod(state, cls, "[]", listGet, 2);
 }

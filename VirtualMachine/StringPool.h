@@ -8,13 +8,13 @@
 
 class StringPool{
 private:
-	std::unordered_map<std::string,int> builtIns;
 	std::unordered_map<std::string,int> sharedStrings;
 	std::vector<StrObj*> strings;
 	size_t constants;
 public:
 	StringPool() :constants(0) {
-		putBuiltInStr("constructor");
+		putStringConstant("constructor");
+		putStringConstant("__init__");
 	}
 	~StringPool(){
 		for (auto &sobj : strings){
@@ -37,25 +37,26 @@ public:
 		StrObj *sobj = new StrObj(str);
 		strings.push_back(sobj);
 		constants++;
-		sharedStrings.insert(std::make_pair(str,constants));
-		return (int)constants;
-	}
-	int putBuiltInStr(const std::string& str){
-		
-		int sindex = putStringConstant(str);
-		builtIns.insert(std::make_pair(str,sindex));
-		return sindex;
+		sharedStrings.insert(std::make_pair(str,(int)constants-1));
+		return (int)constants-1;
 	}
 	StrObj* putString(const std::string &str){
 		StrObj *sobj = new StrObj(str);
 		strings.push_back(sobj);
 		return sobj;
 	}
-	StrObj* getStringConstant(const std::string& str){
+	int getStringConstant(const std::string& str){
 		auto iter = sharedStrings.find(str);
-		assert(iter != builtIns.end());
-		return strings[iter->second];
+		if(iter == sharedStrings.end())
+			return -1;
+		return iter->second;
 	}
+	/*StrObj* getStringConstant(const std::string& str){
+		auto iter = sharedStrings.find(str);
+		if(iter == sharedStrings.end())
+			return NULL;
+		return strings[iter->second];
+	}*/
 	StrObj* getStrObj(size_t n){
 		return strings[n];
 	}

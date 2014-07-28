@@ -32,8 +32,11 @@ ClsType* defineClass(void* state, char* className){
 }
 
 int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nArgs){
-	VirtualMachine *vm = new VirtualMachine();
-	int index = vm->stringPoolPtr->putBuiltInStr(funcName);
+	VirtualMachine *vm = (VirtualMachine*)state;
+	int index = vm->stringPoolPtr->getStringConstant(funcName);
+	if (index == -1){
+		index = vm->stringPoolPtr->putStringConstant(funcName);
+	}
 	StrObj* pStrObj = vm->stringPoolPtr->getStrObj(index);
 	ClsType* clsType = (ClsType*)cls;
 	Object obj;
@@ -73,7 +76,7 @@ void freeState(void* state){
 }
 
 void getArgs(void* state, int *len, Object** objects){
-	VirtualMachine *vm = new VirtualMachine();
+	VirtualMachine *vm = (VirtualMachine*)state;
 	vm->getArgs(len, objects);
 }
 

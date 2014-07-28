@@ -27,6 +27,8 @@ void VirtualMachine::checkCallable(Object& obj){
 }
 
 void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
+	if (nArgs == ANYARG) 
+		return;
 	char buf[100];
 	std::string msg;
 	if (actualNArgs < nArgs){
@@ -256,18 +258,19 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					nobjs++;
 					collect();
 					Object newObj;
-					StrObj* strObj = stringPoolPtr->getStringConstant("constructor");
+					StrObj* strObj = getStrObj("constructor");
 					auto& map = this->listCls->clsAttrs;
 					auto iter = map.find(strObj);
 					assert(iter != map.end() && iter->second.type == CFUNOBJ);
 					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
-					checkArgs(top - newBase, iter->second.value.cFunObj->nArgs);
+ 					checkArgs(top - newBase, iter->second.value.cFunObj->nArgs);
 					callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
 					framePointer = newBase;
 					newObj = iter->second.value.cFunObj->fun((void*)this);
 					callInfoPtr = callInfoPtr->next;
-					stack.push_back(newObj);
-					top++;
+					obj = newObj;
+					top = newBase;
+					stack.resize(top);
 					break;
 				} 
 				else if (obj.type == CLSTYPE){
@@ -281,7 +284,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					clsObj->clsType = obj.value.clsType;
 					newObj.value.clsObj = clsObj;
 					obj = newObj;
-					StrObj* strObj = stringPoolPtr->getStringConstant("__init__");
+					StrObj* strObj = getStrObj("__init__");
 					auto& map = newObj.value.clsObj->clsType->clsAttrs;
 					auto iter = map.find(strObj);
 					if (iter != map.end()){
@@ -367,7 +370,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case GETATTR:{
 				Object &obj = stack[top-2];
 				Object &sobj = stack[top-1];
-				if (obj.type != CLSTYPE && obj.type != CLSOBJ && !(obj.type & LISTOBJ) && !(obj.type & DICTOBJ)){
+				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
 					throwError("target doesn't support getattr",TYPEERROR);
 				}
 				assert(sobj.type == STROBJ);
@@ -416,6 +419,81 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				break;
 			}
 			case SETATTR:{
+				Object &obj = stack[top-3];
+				Object &sobj = stack[top-2];
+				Object &value = stack[top-1];
+				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
+					throwError("target does't support setattr",TYPEERROR);
+				}
+				assert(sobj.type == STROBJ);
+				auto &map = 
+					obj.type == CLSTYPE? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
+				StrObj* strObj = sobj.value.strObj;
+				auto &p = map.insert(std::make_pair(strObj,value));
+				if (!p.second ){
+					map.erase(p.first);
+					map.insert(p.first,std::make_pair(strObj,value));
+				}
+				top = top - 3;
+				stack.resize(top);
+				break;
+			}
+			case GETINDEX:{
+				Object &obj = stack[top-2];
+				Object &obj2 = stack[top-1];
+				if (!(obj.type & USEROBJ) && !(obj.type & LISTOBJ)){
+					throwError("target doesn't support getindex",TYPEERROR);
+				}
+				assert(obj2.type == STROBJ || obj2.type == NUMOBJ);
+				if (obj.type & LISTOBJ){
+					if(obj2.type != NUMOBJ)
+						throwError("index type error",TYPEERROR);
+				}
+				StrObj* strObj = obj2.value.strObj;
+				std::unordered_map<StrObj*,Object>::iterator iter;
+				bool createMethod = false;
+				if (obj.type == CLSTYPE){
+					auto& map = obj.value.clsType->clsAttrs;
+					iter = map.find(strObj);
+					if (iter == map.end()){
+						throwError("class doesn't have such attribute",TYPEERROR);
+					}
+				}
+				else{
+					auto& map = obj.value.clsObj->attrs;
+					iter = map.find(strObj);
+					if (iter == map.end()){
+						map = obj.value.clsObj->clsType->clsAttrs;
+						iter = map.find(strObj);
+						if (iter == map.end()){
+							throwError("object doesn't have such attribute",TYPEERROR);
+						}
+						else{
+							if (iter->second.type == FUNOBJ || iter->second.type == CFUNOBJ)
+								createMethod = true;
+						}	
+					}
+				}
+				if (createMethod){
+					Object method;
+					method.value.method.self = obj.value.clsObj;
+					if (iter->second.type == FUNOBJ){
+						method.value.method.funObj = iter->second.value.funObj;
+						method.type = METHOD | FUNOBJ;
+					}
+					else {
+						method.value.method.cFunObj = iter->second.value.cFunObj;
+						method.type = METHOD | CFUNOBJ;
+					}
+					obj = method;
+				}
+				else
+					obj = iter->second;
+				top--;
+				stack.resize(top);
+				break;
+			}
+			case SETINDEX:{
 				Object &obj = stack[top-3];
 				Object &sobj = stack[top-2];
 				Object &value = stack[top-1];
@@ -717,6 +795,12 @@ bool VirtualMachine::pushFunObj(const std::string& symbol){
 	stack.push_back(symTab->getObj(p.second));
 	top++;
 	return true;
+}
+
+StrObj* VirtualMachine::getStrObj(const std::string& str){
+	int index = stringPoolPtr->getStringConstant(str);
+	assert(index != -1);
+	return stringPoolPtr->getStrObj(index);
 }
 
 std::string VirtualMachine::getStackTrace(){

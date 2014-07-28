@@ -8,7 +8,7 @@ extern "C" {
 #endif
 #define SYMBOLEXIST 1
 
-#define ANY -1
+#define ANYARG -1
 int defineMethod(void* state,cFunc func);
 void* newState();
 void freeState(void* state);

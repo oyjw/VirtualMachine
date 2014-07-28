@@ -46,6 +46,7 @@ public:
 			(*objs)[i] = stack[framePointer + i];
 		}
 	}
+	StrObj* getStrObj(const std::string& str);
 	std::string getStackTrace();
 	void checkArgs(int, int);
 	void checkCallable(Object&);

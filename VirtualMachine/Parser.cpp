@@ -105,16 +105,22 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 	}
 }
 
-void Parser::lvalue(){
+bool Parser::lvalue(){
 	Token* token = tokenizer->getToken();
 	match(IDEN);
 	auto pair = parseIden(token);
 	pushValue(IDEN, pair.second, pair.first);
 	token = tokenizer->getToken();
+	bool isPeriod;
 	while(token->type == PERIOD || token->type == LBRACKET){
+		isPeriod = token->type == PERIOD? true: false;
 		parseSeleOp();
 		token = tokenizer->getToken();
+		if (token->type == PERIOD || token->type == LBRACKET){
+			byteCode->push_back(isPeriod?GETATTR:GETINDEX);
+		}
 	}
+	return isPeriod;
 }
 
 void Parser::rvalue(){
@@ -126,13 +132,18 @@ void Parser::rvalue(){
 
 void Parser::parseOp(){
 	Token* token = tokenizer->getToken();
-	//bool isObjCall = false;
 	bool recursion = false;
 	if (token->type == PERIOD){
 		parseSeleOp();
 		byteCode->push_back((char)GETATTR);
 		token = tokenizer->getToken();
-		//isObjCall = true;
+		recursion = true;
+	}
+	if (token->type == LBRACKET){
+		parseSeleOp();
+		byteCode->push_back((char)GETINDEX);
+		match(RBRACKET);
+		token = tokenizer->getToken();
 		recursion = true;
 	}
 	if (token->type == LPAREN){
@@ -144,9 +155,8 @@ void Parser::parseOp(){
 		parseOp();
 }
 
-int Parser::parseSeleOp(){
+void Parser::parseSeleOp(){
 	Token* token = tokenizer->getToken();
-	int n = 0;
 	if (token->type == PERIOD){
 		tokenizer->advance();
 		token = tokenizer->getToken();
@@ -154,16 +164,13 @@ int Parser::parseSeleOp(){
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHSTRING);
 		pushWord(index);
-		n++;
 	}
 	else if (token->type == LBRACKET){
-		tokenizer->advance(1);
-		token = tokenizer->getToken();
+		tokenizer->advance();
 		orExpr();
 		match(RBRACKET);
-		n++;
 	}
-	return n;
+	else assert(0);
 }
 
 
@@ -236,6 +243,7 @@ void Parser::assignStmt(){
 	int n = 0;
 	bool global = false;
 	bool objLvalue = false;
+	bool isPeriod = false;
 	if (isClass && !isClassFunction){
 		addSymbol();
 		int index = getSharedString(token->str);
@@ -246,7 +254,7 @@ void Parser::assignStmt(){
 	}
 	else {
 		if (token2->type == PERIOD || token2->type == LBRACKET){
-			lvalue();
+			isPeriod = lvalue();
 			objLvalue = true;
 		}
 		else{
@@ -263,7 +271,7 @@ void Parser::assignStmt(){
 	match(ASSIGN);
 	orExpr();
 	if (isClass || objLvalue){
-		byteCode->push_back((char)SETATTR);
+		byteCode->push_back(isPeriod?SETATTR:SETINDEX);
 	}
 	else {
 		byteCode->push_back(char(global ? STOREGLOBAL : STORELOCAL));
@@ -472,13 +480,7 @@ void Parser::function(){
 	}
 	StrObj* strObj = NULL;
 	if (isClass){
-		int sindex = 0;
-		if(isClassConstructor){
-			sindex = getBuiltInStr(token->str);
-		}
-		else{
-			sindex = getSharedString(token->str);
-		}
+		int sindex = getSharedString(token->str);
 		strObj = stringPoolPtr->getStrObj(sindex);
 	}
 	match(LPAREN);
@@ -709,28 +711,11 @@ void Parser::continueStmt(){
 	pushWord(0);
 }
 
-int Parser::getBuiltInStr(const std::string& str){
-	auto iter = sharedStrings.find(str);
-	int index = 0;
-	if (iter == sharedStrings.end()){
-		index = stringPoolPtr->putBuiltInStr(str);
-		sharedStrings.insert(std::make_pair(str,index));
-	}
-	else
-		index = iter->second;
-	assert(index>=0 && index<=SHRT_MAX);
-	return index;
-}
-
 int Parser::getSharedString(const std::string& str){
-	auto iter = sharedStrings.find(str);
-	int index = 0;
-	if (iter == sharedStrings.end()){
+	int index = stringPoolPtr->getStringConstant(str);
+	if (index == -1){
 		index = stringPoolPtr->putStringConstant(str);
-		sharedStrings.insert(std::make_pair(str,index));
 	}
-	else
-		index = iter->second;
 	assert(index>=0 && index<=SHRT_MAX);
 	return index;
 }
