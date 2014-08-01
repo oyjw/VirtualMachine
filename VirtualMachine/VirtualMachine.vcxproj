@@ -76,16 +76,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Dict.cpp" />
     <ClCompile Include="List.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Parser.cpp" />
     <ClCompile Include="slang.cpp" />
+    <ClCompile Include="String.cpp" />
     <ClCompile Include="SymbolTable.cpp" />
     <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="VirtualMachine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
+    <ClInclude Include="Dict.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="List.h" />
     <ClInclude Include="Object.h" />
@@ -93,6 +96,7 @@
     <ClInclude Include="OpCode.h" />
     <ClInclude Include="Parser.h" />
     <ClInclude Include="slang.h" />
+    <ClInclude Include="String.h" />
     <ClInclude Include="StringPool.h" />
     <ClInclude Include="SymbolTable.h" />
     <ClInclude Include="Tokenizer.h" />

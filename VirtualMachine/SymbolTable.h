@@ -30,8 +30,8 @@ public:
 	std::vector<Symbol> symVec;
 	bool isGlobal;
 	int nLocalVars;
-	std::vector<Symbol>&& getSymbols(){
-		return std::move(symVec);
+	std::vector<Symbol>& getSymbols(){
+		return symVec;
 	}
 	SymbolTable(SymPtr nextSymTab,int n) :next(nextSymTab), isGlobal(false), nLocalVars(n) {}
 	SymbolTable():isGlobal(true),nLocalVars(0) {

@@ -111,13 +111,13 @@ bool Parser::lvalue(){
 	auto pair = parseIden(token);
 	pushValue(IDEN, pair.second, pair.first);
 	token = tokenizer->getToken();
-	bool isPeriod;
+	bool isPeriod = false;
 	while(token->type == PERIOD || token->type == LBRACKET){
 		isPeriod = token->type == PERIOD? true: false;
 		parseSeleOp();
 		token = tokenizer->getToken();
 		if (token->type == PERIOD || token->type == LBRACKET){
-			byteCode->push_back(isPeriod?GETATTR:GETINDEX);
+			byteCode->push_back(char(isPeriod?GETATTR:GETINDEX));
 		}
 	}
 	return isPeriod;
@@ -243,9 +243,16 @@ void Parser::assignStmt(){
 	int n = 0;
 	bool global = false;
 	bool objLvalue = false;
-	bool isPeriod = false;
+	bool isPeriod = true;
 	if (isClass && !isClassFunction){
-		addSymbol();
+		match(IDEN);
+		auto iter = classAttrs.find(token->str);
+		if (iter != classAttrs.end())
+			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
+		else{
+			classAttrs.insert(token->str);
+		}
+		token = tokenizer->getToken();
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHGLOBAL);
 		pushWord(clsIndex);
@@ -270,8 +277,11 @@ void Parser::assignStmt(){
 	
 	match(ASSIGN);
 	orExpr();
-	if (isClass || objLvalue){
-		byteCode->push_back(isPeriod?SETATTR:SETINDEX);
+	if (isClass){
+		byteCode->push_back(char(SETATTR));
+	}
+	else if (objLvalue){
+		byteCode->push_back(char(isPeriod?SETATTR:SETINDEX));
 	}
 	else {
 		byteCode->push_back(char(global ? STOREGLOBAL : STORELOCAL));
@@ -465,11 +475,11 @@ void Parser::function(){
 	std::string functionName = token->str;
 	int index = 0;
 	if (isClass){
-		auto iter = classFunctions.find(functionName);
-		if (iter != classFunctions.end())
+		auto iter = classAttrs.find(functionName);
+		if (iter != classAttrs.end())
 			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
 		else{
-			classFunctions.insert(functionName);
+			classAttrs.insert(functionName);
 		}
 		if (token->type == INITMETHOD)
 			isClassConstructor = true;
@@ -728,7 +738,7 @@ void Parser::classDefinition(){
 	curClsType = cls;
 	curClsType->clsName = clsName;
 	isClass = true;
-	classFunctions.clear();
+	classAttrs.clear();
 	Object object;
 	object.type = CLSTYPE;
 	object.value.clsType = cls;

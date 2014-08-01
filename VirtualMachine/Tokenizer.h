@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <fstream>
+#include "slang.h"
 enum TokenType{
 	IDEN, NUM, STRING,FUNCTION, SEMICOLON, PERIOD, NEW, STAR, SLASH, MINUS, PLUS, MOD, ENDOF, ASSIGN, EQ, NOTEQ ,LT,GT, LE ,GE ,LPAREN, 
 	RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE, COMMA, RETURN, FOR, IF, ELSE, NOT, AND, OR, PRINT,VAR ,WHILE,BREAK, CONTINUE, 
@@ -19,12 +20,6 @@ public:
 	int type;
 };
 
-#define TYPEERROR 0
-#define ATTRERROR 1
-#define ARGUMENTERROR 2
-#define SYNTAXERROR 3
-#define SYMBOLERROR 4
-#define TOKENERROR 5
 
 class Tokenizer{
 public:

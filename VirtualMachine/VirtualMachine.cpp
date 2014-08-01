@@ -8,14 +8,15 @@
 #include "Tokenizer.h"
 #include "Parser.h"
 #include "ObjectPool.h"
+#include "List.h"
 #include <cassert>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 
-VirtualMachine::VirtualMachine():threshold(100), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
-	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo), listCls(NULL), dictCls(NULL) {
+VirtualMachine::VirtualMachine():threshold(100), nobjs(0), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
+	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo), listCls(NULL), dictCls(NULL), strCls(NULL) {
 	callInfoPtr->funcName = "main";
 }
 
@@ -119,6 +120,10 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				obj.value.strObj = stringPoolPtr->getStrObj(index);
 				stack.push_back(obj);
 				top++;
+				int newBase = top - 1;
+				nobjs++;
+				collect();
+				stack[top-1] = callCFunc(this->strCls, "constructor", newBase);
 				break;
 			}
 			case OP_ADD:{
@@ -128,12 +133,12 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					float result=l.value.numval+r.value.numval;
 					l.value.numval=result;
 				}
-				else if (l.type==STROBJ && r.type==STROBJ){
+				else if (l.type & STROBJ && r.type & STROBJ){
 					nobjs++;
 					collect();
-					std::string& leftStr = l.value.strObj->str;
-					std::string& rightStr = r.value.strObj->str;
-					l.value.strObj = stringPoolPtr->putString(leftStr+rightStr);
+					std::string& leftStr = ((StrObj*)(l.value.userData.data))->str;
+					std::string& rightStr = ((StrObj*)(r.value.userData.data))->str;
+					l.value.userData.data = stringPoolPtr->putString(leftStr+rightStr);
 				}
 				else{
 					throwError("operands don't support + operator",TYPEERROR);
@@ -257,18 +262,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
   				if (obj.type == USERTYPE){
 					nobjs++;
 					collect();
-					Object newObj;
-					StrObj* strObj = getStrObj("constructor");
-					auto& map = this->listCls->clsAttrs;
-					auto iter = map.find(strObj);
-					assert(iter != map.end() && iter->second.type == CFUNOBJ);
-					callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
- 					checkArgs(top - newBase, iter->second.value.cFunObj->nArgs);
-					callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
-					framePointer = newBase;
-					newObj = iter->second.value.cFunObj->fun((void*)this);
-					callInfoPtr = callInfoPtr->next;
-					obj = newObj;
+					obj = callCFunc(obj.value.userData.type, "constructor", newBase);
 					top = newBase;
 					stack.resize(top);
 					break;
@@ -370,14 +364,14 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case GETATTR:{
 				Object &obj = stack[top-2];
 				Object &sobj = stack[top-1];
-				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
+				if (obj.type != CLSTYPE && obj.type != CLSOBJ && obj.type != USERTYPE && !(obj.type & USEROBJ)){
 					throwError("target doesn't support getattr",TYPEERROR);
 				}
 				assert(sobj.type == STROBJ);
 				StrObj* strObj = sobj.value.strObj;
-				std::unordered_map<StrObj*,Object>::iterator iter;
+				std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>::iterator iter;
 				bool createMethod = false;
-				if (obj.type == CLSTYPE){
+				if (obj.type == CLSTYPE || obj.type == USERTYPE){
 					auto& map = obj.value.clsType->clsAttrs;
 					iter = map.find(strObj);
 					if (iter == map.end()){
@@ -385,12 +379,21 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					}
 				}
 				else{
-					auto& map = obj.value.clsObj->attrs;
-					iter = map.find(strObj);
-					if (iter == map.end()){
-						map = obj.value.clsObj->clsType->clsAttrs;
-						iter = map.find(strObj);
-						if (iter == map.end()){
+					bool findClsAttr = false;
+					std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>* map;
+					if (obj.type == CLSOBJ){
+						map = &(obj.value.clsObj->attrs);
+						iter = map->find(strObj);
+						if (iter == map->end()){
+							findClsAttr = true;
+						}
+					}
+					else
+						findClsAttr = true;
+					if (findClsAttr){
+						map = obj.type == CLSOBJ?&(obj.value.clsObj->clsType->clsAttrs):&(obj.value.userData.type->clsAttrs);
+						iter = map->find(strObj);
+						if (iter == map->end()){
 							throwError("object doesn't have such attribute",TYPEERROR);
 						}
 						else{
@@ -422,14 +425,14 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				Object &obj = stack[top-3];
 				Object &sobj = stack[top-2];
 				Object &value = stack[top-1];
-				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
+				if (obj.type != CLSTYPE && obj.type != CLSOBJ && obj.type != USERTYPE){
 					throwError("target does't support setattr",TYPEERROR);
 				}
 				assert(sobj.type == STROBJ);
 				auto &map = 
-					obj.type == CLSTYPE? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
+					(obj.type == CLSTYPE || obj.type == USERTYPE)? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
 				StrObj* strObj = sobj.value.strObj;
-				auto &p = map.insert(std::make_pair(strObj,value));
+				auto p = map.insert(std::make_pair(strObj,value));
 				if (!p.second ){
 					map.erase(p.first);
 					map.insert(p.first,std::make_pair(strObj,value));
@@ -441,75 +444,22 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case GETINDEX:{
 				Object &obj = stack[top-2];
 				Object &obj2 = stack[top-1];
-				if (!(obj.type & USEROBJ) && !(obj.type & LISTOBJ)){
-					throwError("target doesn't support getindex",TYPEERROR);
-				}
-				assert(obj2.type == STROBJ || obj2.type == NUMOBJ);
-				if (obj.type & LISTOBJ){
-					if(obj2.type != NUMOBJ)
-						throwError("index type error",TYPEERROR);
-				}
-				StrObj* strObj = obj2.value.strObj;
-				std::unordered_map<StrObj*,Object>::iterator iter;
-				bool createMethod = false;
-				if (obj.type == CLSTYPE){
-					auto& map = obj.value.clsType->clsAttrs;
-					iter = map.find(strObj);
-					if (iter == map.end()){
-						throwError("class doesn't have such attribute",TYPEERROR);
-					}
-				}
-				else{
-					auto& map = obj.value.clsObj->attrs;
-					iter = map.find(strObj);
-					if (iter == map.end()){
-						map = obj.value.clsObj->clsType->clsAttrs;
-						iter = map.find(strObj);
-						if (iter == map.end()){
-							throwError("object doesn't have such attribute",TYPEERROR);
-						}
-						else{
-							if (iter->second.type == FUNOBJ || iter->second.type == CFUNOBJ)
-								createMethod = true;
-						}	
-					}
-				}
-				if (createMethod){
-					Object method;
-					method.value.method.self = obj.value.clsObj;
-					if (iter->second.type == FUNOBJ){
-						method.value.method.funObj = iter->second.value.funObj;
-						method.type = METHOD | FUNOBJ;
-					}
-					else {
-						method.value.method.cFunObj = iter->second.value.cFunObj;
-						method.type = METHOD | CFUNOBJ;
-					}
-					obj = method;
-				}
-				else
-					obj = iter->second;
-				top--;
+				checkIndexType(obj,obj2);
+
+				int newBase = top - 2;
+				obj = callCFunc(this->listCls, "[]", newBase);
+				top = newBase + 1;
 				stack.resize(top);
 				break;
 			}
 			case SETINDEX:{
 				Object &obj = stack[top-3];
-				Object &sobj = stack[top-2];
+				Object &obj2 = stack[top-2];
 				Object &value = stack[top-1];
-				if (obj.type != CLSTYPE && obj.type != CLSOBJ){
-					throwError("target does't support setattr",TYPEERROR);
-				}
-				assert(sobj.type == STROBJ);
-				auto &map = 
-					obj.type == CLSTYPE? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
-				StrObj* strObj = sobj.value.strObj;
-				auto &p = map.insert(std::make_pair(strObj,value));
-				if (!p.second ){
-					map.erase(p.first);
-					map.insert(p.first,std::make_pair(strObj,value));
-				}
-				top = top - 3;
+				checkIndexType(obj,obj2);
+				int newBase = top - 3;
+				obj = callCFunc(this->listCls, "[]=", newBase);
+				top = newBase;
 				stack.resize(top);
 				break;
 			}
@@ -517,6 +467,32 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 		}
 	}
 	return 0;
+}
+
+void VirtualMachine::checkIndexType(Object& obj, Object& obj2){
+	if (!(obj.type & USEROBJ) && !(obj.type & LISTOBJ)){
+		throwError("target doesn't support getindex",TYPEERROR);
+	}
+	assert(obj2.type == STROBJ || obj2.type == NUMOBJ);
+	if (obj.type & LISTOBJ){
+		if(obj2.type != NUMOBJ)
+			throwError("index type error",TYPEERROR);
+	}
+}
+
+Object VirtualMachine::callCFunc(ClsType* type, std::string funcName, int newBase){
+	Object newObj;
+	StrObj* strObj = getStrObj(funcName);
+	auto& map = type->clsAttrs;
+	auto iter = map.find(strObj);
+	assert(iter != map.end() && iter->second.type == CFUNOBJ);
+	callInfoPtr = std::make_shared<CallInfo>(callInfoPtr);
+ 	checkArgs(top - newBase, iter->second.value.cFunObj->nArgs);
+	callInfoPtr->funcName = iter->second.value.cFunObj->functionName;
+	framePointer = newBase;
+	newObj = iter->second.value.cFunObj->fun((void*)this);
+	callInfoPtr = callInfoPtr->next;
+	return newObj;
 }
 
 bool VirtualMachine::boolValue(Object& obj){
@@ -572,12 +548,46 @@ void VirtualMachine::compare(int opcode){
 	stack.resize(top);
 }
 
-void VirtualMachine::collect(){
-	if (nobjs > threshold){
-		stringPoolPtr->collect();
-		nobjs = stringPoolPtr->getStrNum();
-		threshold = nobjs*2;
+void markObject(Object& obj){
+	if (obj.type & USEROBJ){
+		obj.value.userData->mark = true;
+		if (obj.type & LISTOBJ){
+			List* list = (List*)obj.value.userData->data;
+			for (auto& obj : list->vec){
+				markObject(obj);
+			}
+		}
+		else if (obj.type & STROBJ){
+			StrObj* strObj = (StrObj*)obj.value.userData->data;
+			strObj->mark = true;
+		}
 	}
+	else if (obj.type == CLSOBJ){
+		obj.value.clsObj->mark = true;
+		for (auto& pair : obj.value.clsObj->attrs){
+			markObject(pair.second);
+		}
+	}
+}
+
+void VirtualMachine::mark(){
+	std::vector<Symbol>& symbols = this->symTab->getSymbols();
+	for (auto &symbol : symbols){
+		markObject(symbol.obj);
+	}
+	for (auto& obj : stack){
+		markObject(obj);
+	}
+}
+
+void VirtualMachine::collect(){
+	if (nobjs <= threshold)
+		return;
+	mark();
+	stringPoolPtr->collect();
+	objectPoolPtr->collect();
+	nobjs = stringPoolPtr->getStrNum() + (int)objectPoolPtr->getObjNum();
+	threshold = nobjs*2;
 }
 
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
@@ -723,11 +733,11 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1 << "\tSETATTR\t"  << std::endl;
 				break;
 			}
-			case CREATELIST:{
+			case GETINDEX:{
 				ofs << byteCodePos-1 << "\tCREATELIST\t"  << std::endl;
 				break;
 			}
-			case CREATEDICT:{
+			case SETINDEX:{
 				ofs << byteCodePos-1 << "\tCREATEDICT\t"  << std::endl;
 				break;
 			}
@@ -797,6 +807,14 @@ bool VirtualMachine::pushFunObj(const std::string& symbol){
 	return true;
 }
 
+StrObj* VirtualMachine::addStrObj(const std::string& str){
+	int index = stringPoolPtr->getStringConstant(str);
+	if (index == -1){
+		return stringPoolPtr->putString(str);
+	}
+	return stringPoolPtr->getStrObj(index);
+}
+
 StrObj* VirtualMachine::getStrObj(const std::string& str){
 	int index = stringPoolPtr->getStringConstant(str);
 	assert(index != -1);
@@ -818,7 +836,7 @@ std::string VirtualMachine::getStackTrace(){
 }
 
 const char* emsg[] = {
-	"TypeError", "AttrError",
+	"TypeError", "AttrError", "ArgumentError"
 };
 
 void VirtualMachine::throwError(const std::string msg, int type){

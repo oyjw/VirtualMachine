@@ -3,10 +3,9 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-
+#include <cassert>
 #define NILOBJ  0
 #define NUMOBJ  1
-#define STROBJ  2
 #define BOOLOBJ 3
 #define USERTYPE 4
 #define CLSOBJ  6
@@ -16,7 +15,8 @@
 #define METHOD  1<<5
 #define USEROBJ 1<<6
 #define LISTOBJ 1<<7
-
+#define DICTOBJ 1<<8
+#define STROBJ  1<<9
 
 
 class StrObj {
@@ -72,13 +72,17 @@ public:
 
 class ClsObj {
 public:
+	bool mark;
 	ClsType* clsType;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
+	ClsObj() :mark(false),clsType(NULL) {}
 };
 
 struct UserData{
+	bool mark;
 	void* data;
 	ClsType* type;
+	UserData(ClsType* t, void* d) :type(t), data(d), mark(false) {}
 };
 
 struct Object{
@@ -92,50 +96,12 @@ struct Object{
 		ClsObj* clsObj;
 		ClsType* clsType;
 		Method method;
-		void* userData;
+		UserData* userData;
 	} value;
 };
 
 
-#include <cassert>
-namespace std{
-	template<>
-	struct hash<Object>{
-		typedef Object argument_type;
-		typedef size_t value_type;
-		value_type operator()(const argument_type& obj){
-			switch (obj.type){
-				case NUMOBJ:return hash<float>()(obj.value.numval); break;
-				case STROBJ:return strHasher(obj.value.strObj); break;
-				case FUNOBJ:return hash<decltype(obj.value.funObj)>()(obj.value.funObj); break;
-				case BOOLOBJ:return hash<bool>()(obj.value.boolval); break;
-				case CLSOBJ:return hash<decltype(obj.value.clsObj)>()(obj.value.clsObj); break;
-				//case CLSTYPE:return hash<decltype(obj.value.)>()(obj.value.funObj);
-				case NILOBJ:
-				default:assert(0); break;
-			}
-		}
-	};
 
-	template<>
-	struct equal_to<Object>{
-		typedef bool result_type;
-		typedef Object first_argument_type;
-        typedef Object second_argument_type;
-		bool operator()(first_argument_type const& a, second_argument_type const& b) const{
-			switch (a.type){
-				case NUMOBJ:return a.value.numval == b.value.numval;
-				case STROBJ:return strEq(a.value.strObj,b.value.strObj); 
-				case FUNOBJ:return a.value.funObj == b.value.funObj; 
-				case BOOLOBJ:return a.value.boolval == b.value.boolval; 
-				case CLSOBJ:return a.value.clsObj == b.value.clsObj;
-				//case CLSTYPE:return hash<decltype(obj.value.)>()(obj.value.funObj);
-				case NILOBJ:
-				default:assert(0); break;
-			}
-		}
-	};
-}
 
 struct Symbol{
 	Object obj;

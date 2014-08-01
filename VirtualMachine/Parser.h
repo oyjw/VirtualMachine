@@ -109,7 +109,7 @@ private:
 	SymPtr symTab;
 	//std::vector<ClsType> *clsData;
 	ClsType* curClsType;
-	std::unordered_set<std::string> classFunctions;
+	std::unordered_set<std::string> classAttrs;
 	bool isClass;
 	bool isClassFunction;
 	bool isClassConstructor;

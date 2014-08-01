@@ -6,8 +6,9 @@
 #include "OpCode.h"
 #include "SymbolTable.h"
 #include "StringPool.h"
+#include "ObjectPool.h"
 #include "List.h"
-#include <iostream>
+#include "String.h"
 
 const char* errorMsg[] = {
 	"symbol already exist",
@@ -46,7 +47,10 @@ int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nA
 	pCFunObj->fun = func;
 	pCFunObj->nArgs = nArgs;
 	obj.value.cFunObj = pCFunObj;
-	clsType->clsAttrs.insert(std::make_pair(pStrObj,obj));
+	auto pair = clsType->clsAttrs.insert(std::make_pair(pStrObj,obj));
+	if (!pair.second){
+		return -1;
+	}
 	return 0;
 }
 
@@ -68,6 +72,7 @@ int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
 void* newState(){
 	VirtualMachine *vm = new VirtualMachine();
 	listInit((void*)vm);
+	strInit(vm);
 	return (void*)vm;
 }
 
@@ -80,6 +85,11 @@ void getArgs(void* state, int *len, Object** objects){
 	vm->getArgs(len, objects);
 }
 
+void setGC(void* state, UserData *userData){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	vm->objectPoolPtr->putUserData(userData);
+}
+
 static Object subStr(void* state){
 	VirtualMachine *vm = new VirtualMachine();
 	int len;
@@ -89,27 +99,6 @@ static Object subStr(void* state){
 
 }
 
-static Object toStr(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
-	Object result;
-	result.type = STROBJ;
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
-	Object& o = objs[0];
-	assert(len == 1);
-	switch (o.type){
-		case NUMOBJ:{
-			char buf[100];
-			o.value.strObj = vm->stringPoolPtr->putString(std::to_string(o.value.numval));
-		}
-		case STROBJ:{
-			return o;
-		}
-		default:assert(0);
-	}
-	return o;
-}
 
 static Object strFind(void* state){
 	VirtualMachine *vm = new VirtualMachine();
@@ -141,6 +130,6 @@ void parseFile(void* state, const char* fileName){
 	vm->byteCodePtr,vm->objectPoolPtr);
 	parser->program();
 	
-		vm->run();
+	vm->run();
 	
 }

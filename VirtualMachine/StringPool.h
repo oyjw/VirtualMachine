@@ -14,6 +14,8 @@ private:
 public:
 	StringPool() :constants(0) {
 		putStringConstant("constructor");
+		putStringConstant("[]");
+		putStringConstant("[]=");
 		putStringConstant("__init__");
 	}
 	~StringPool(){

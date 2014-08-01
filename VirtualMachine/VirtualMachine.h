@@ -46,6 +46,7 @@ public:
 			(*objs)[i] = stack[framePointer + i];
 		}
 	}
+	StrObj* addStrObj(const std::string& str);
 	StrObj* getStrObj(const std::string& str);
 	std::string getStackTrace();
 	void checkArgs(int, int);
@@ -58,8 +59,12 @@ public:
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 	ClsType* listCls;
 	ClsType* dictCls;
+	ClsType* strCls;
 private:
+	void checkIndexType(Object& obj, Object& obj2);
+	Object callCFunc(ClsType* type, std::string funcName, int newBase);
 	bool boolValue(Object& obj);
+	void mark();
 	void collect();
 	void compute(int opcode);
 	void compare(int opcode);
