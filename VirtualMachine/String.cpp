@@ -28,7 +28,7 @@ Object strNew(void* state){
 	Object obj;
 	obj.type = USEROBJ | STROBJ;
 	obj.value.userData = new UserData(vm->strCls,toStr(state).value.strObj);
-	setGC(state, obj.value.userData);
+	setGC2(state, obj.value.userData);
 	return obj;
 }
 

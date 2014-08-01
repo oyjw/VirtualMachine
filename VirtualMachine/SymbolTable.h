@@ -56,6 +56,14 @@ public:
 					}
 					delete obj.value.clsType;
 				}
+				else if (obj.type == USERTYPE){
+					auto &map = obj.value.clsType->clsAttrs;
+					for (auto iter = map.begin(); iter != map.end(); ++iter){
+						assert(iter->second.type == CFUNOBJ);
+						delete iter->second.value.cFunObj;
+					}
+					delete obj.value.clsType;
+				}
 			}
 		}
 	}

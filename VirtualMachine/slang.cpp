@@ -85,9 +85,14 @@ void getArgs(void* state, int *len, Object** objects){
 	vm->getArgs(len, objects);
 }
 
+void setGC2(void* state, UserData *userData){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	vm->objectPoolPtr->putUserData(userData, true);
+}
+
 void setGC(void* state, UserData *userData){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	vm->objectPoolPtr->putUserData(userData);
+	vm->objectPoolPtr->putUserData(userData, false);
 }
 
 static Object subStr(void* state){
@@ -130,6 +135,6 @@ void parseFile(void* state, const char* fileName){
 	vm->byteCodePtr,vm->objectPoolPtr);
 	parser->program();
 	
-	vm->run();
+	vm->run("2.txt");
 	
 }

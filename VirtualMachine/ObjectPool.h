@@ -11,7 +11,7 @@ bool mark(Object* obj);
 class ObjectPool{
 private:
 	std::vector<ClsObj*> clsObjVec;
-	std::vector<UserData*> userDataVec;
+	std::vector<std::pair<UserData*,bool>> userDataVec;
 public:
 	ObjectPool() {}
 	~ObjectPool(){
@@ -19,8 +19,9 @@ public:
 			delete pobj;
 		}
 		for (auto &userData : userDataVec){
-			delete userData->data;
-			delete userData;
+			if(!userData.second)
+				delete userData.first->data;
+			delete userData.first;
 		}
 	}
 	void collect(){
@@ -37,13 +38,14 @@ public:
 		clsObjVec.resize(j);
 		j = 0;
 		for (size_t i = 0; i < userDataVec.size(); i++){
-			if (userDataVec[i]->mark){
-				userDataVec[i]->mark = false;
+			if (userDataVec[i].first->mark){
+				userDataVec[i].first->mark = false;
 				userDataVec[j++] = userDataVec[i];
 			}
 			else{
-				delete userDataVec[i]->data;
-				delete userDataVec[i];
+				if (!userDataVec[i].second)
+					delete userDataVec[i].first->data;
+				delete userDataVec[i].first;
 			}
 		}
 		userDataVec.resize(j);
@@ -51,8 +53,8 @@ public:
 	void putClsObj(ClsObj* clsObj){
 		clsObjVec.push_back(clsObj);
 	}
-	void putUserData(UserData* userData){
-		userDataVec.push_back(userData);
+	void putUserData(UserData* userData,bool isStr){
+		userDataVec.push_back(std::make_pair(userData, isStr));
 	}
 	size_t getObjNum(){
 		return clsObjVec.size() + userDataVec.size();

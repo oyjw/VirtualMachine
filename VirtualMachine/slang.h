@@ -24,6 +24,7 @@ void getArgs(void* state, int *len, Object** objects);
 ClsType* defineClass(void* state, char* className);
 int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nArgs);
 void setGC(void* state,UserData *obj);
+void setGC2(void* state,UserData *obj);
 #ifdef __cplusplus
 }
 #endif

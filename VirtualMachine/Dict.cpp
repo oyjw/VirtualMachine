@@ -2,10 +2,6 @@
 #include "VirtualMachine.h"
 #include "slang.h"
 #include "Object.h"
-
-struct Dict{
-	std::unordered_map<Object,Object> attrs;
-};
 namespace std{
 	template<>
 	struct hash<Object>{
@@ -44,56 +40,54 @@ namespace std{
 		}
 	};
 }
-Object dictNew(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
-	Dict* l = new Dict;
-	for (int i = 0; i < len; ++i)
-		l->vec.push_back(objs[i]);
-	Object obj;
-	obj.type = USEROBJ | DICTOBJ;
-	obj.value.userData.type = vm->dictCls;
-	obj.value.userData.data = (void*)l;
-	return obj;
-}
+struct Dict{
+	std::unordered_map<Object,Object> attrs;
+};
 
-Object dictGet(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
-	assert(len == 2);
-	Dict* l =(Dict*)objs[0].value.userData.data;
-	float index = objs[1].value.numval;
-	if (index < 0 || (size_t)index >= l->vec.size()){
-		vm->throwError("index out of range",ARGUMENTERROR);
-	}
-	return l->vec[(size_t)index];
-}
+//Object dictNew(void* state){
+//	VirtualMachine *vm = (VirtualMachine*)state;
+//	int len;
+//	Object* objs;
+//	getArgs(state, &len, &objs);
+//	Dict* l = new Dict;
+//	return ob;
+//}
 
-Object dictSet(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
-	assert(len == 3);
-	dict* l =(dict*)objs[0].value.userData.data;
-	float index = objs[1].value.numval;
-	if (index < 0 || (size_t)index >= l->vec.size()){
-		vm->throwError("index out of range",ARGUMENTERROR);
-	}
-	l->vec[(size_t)index] = objs[2];
-	return {NILOBJ,{}};
-}
+//Object dictGet(void* state){
+//	VirtualMachine *vm = (VirtualMachine*)state;
+//	int len;
+//	Object* objs;
+//	getArgs(state, &len, &objs);
+//	assert(len == 2);
+//	Dict* l =(Dict*)objs[0].value.userData.data;
+//	float index = objs[1].value.numval;
+//	if (index < 0 || (size_t)index >= l->vec.size()){
+//		vm->throwError("index out of range",ARGUMENTERROR);
+//	}
+//	return l->vec[(size_t)index];
+//}
+//
+//Object dictSet(void* state){
+//	VirtualMachine *vm = (VirtualMachine*)state;
+//	int len;
+//	Object* objs;
+//	getArgs(state, &len, &objs);
+//	assert(len == 3);
+//	dict* l =(dict*)objs[0].value.userData.data;
+//	float index = objs[1].value.numval;
+//	if (index < 0 || (size_t)index >= l->vec.size()){
+//		vm->throwError("index out of range",ARGUMENTERROR);
+//	}
+//	l->vec[(size_t)index] = objs[2];
+//	return {NILOBJ,{}};
+//}
 
 void dictInit(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	ClsType* cls = defineClass(state, "dict");
 	vm->dictCls = cls;
 	assert(cls != NULL);
-	defineClassMethod(state, cls, "constructor", dictNew, ANYARG);
-	defineClassMethod(state, cls, "[]", dictGet, 2);
-	defineClassMethod(state, cls, "[]=", dictSet, 3);
+	//defineClassMethod(state, cls, "constructor", dictNew, ANYARG);
+	//defineClassMethod(state, cls, "[]", dictGet, 2);
+	//defineClassMethod(state, cls, "[]=", dictSet, 3);
 }

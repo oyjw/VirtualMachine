@@ -47,7 +47,6 @@ void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
 void printFunc(Object& obj){
 	switch (obj.type){
 		case NUMOBJ:std::cout << (int)obj.value.numval << std::endl; break;
-		case STROBJ:std::cout << obj.value.strObj->str << std::endl; break;
 		case NILOBJ:std::cout << "None" <<std::endl; break;
 		case CLSOBJ:{
 			std::cout << obj.value.clsObj->clsType->clsName << " object" <<std::endl; break;
@@ -136,9 +135,9 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				else if (l.type & STROBJ && r.type & STROBJ){
 					nobjs++;
 					collect();
-					std::string& leftStr = ((StrObj*)(l.value.userData.data))->str;
-					std::string& rightStr = ((StrObj*)(r.value.userData.data))->str;
-					l.value.userData.data = stringPoolPtr->putString(leftStr+rightStr);
+					std::string& leftStr = ((StrObj*)(l.value.userData->data))->str;
+					std::string& rightStr = ((StrObj*)(r.value.userData->data))->str;
+					l.value.userData->data = stringPoolPtr->putString(leftStr+rightStr);
 				}
 				else{
 					throwError("operands don't support + operator",TYPEERROR);
@@ -262,7 +261,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
   				if (obj.type == USERTYPE){
 					nobjs++;
 					collect();
-					obj = callCFunc(obj.value.userData.type, "constructor", newBase);
+					obj = callCFunc(obj.value.userData->type, "constructor", newBase);
 					top = newBase;
 					stack.resize(top);
 					break;
@@ -274,7 +273,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					newObj.type = CLSOBJ;
 					ClsObj *clsObj = new ClsObj;
 					newObj.value.clsObj = clsObj;
-					objectPoolPtr->putObj(clsObj);
+					objectPoolPtr->putClsObj(clsObj);
 					clsObj->clsType = obj.value.clsType;
 					newObj.value.clsObj = clsObj;
 					obj = newObj;
@@ -367,8 +366,8 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				if (obj.type != CLSTYPE && obj.type != CLSOBJ && obj.type != USERTYPE && !(obj.type & USEROBJ)){
 					throwError("target doesn't support getattr",TYPEERROR);
 				}
-				assert(sobj.type == STROBJ);
-				StrObj* strObj = sobj.value.strObj;
+				assert(sobj.type & STROBJ);
+				StrObj* strObj = ((StrObj*)sobj.value.userData->data);
 				std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>::iterator iter;
 				bool createMethod = false;
 				if (obj.type == CLSTYPE || obj.type == USERTYPE){
@@ -391,7 +390,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					else
 						findClsAttr = true;
 					if (findClsAttr){
-						map = obj.type == CLSOBJ?&(obj.value.clsObj->clsType->clsAttrs):&(obj.value.userData.type->clsAttrs);
+						map = obj.type == CLSOBJ?&(obj.value.clsObj->clsType->clsAttrs):&(obj.value.userData->type->clsAttrs);
 						iter = map->find(strObj);
 						if (iter == map->end()){
 							throwError("object doesn't have such attribute",TYPEERROR);
@@ -428,10 +427,10 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				if (obj.type != CLSTYPE && obj.type != CLSOBJ && obj.type != USERTYPE){
 					throwError("target does't support setattr",TYPEERROR);
 				}
-				assert(sobj.type == STROBJ);
+				assert(sobj.type & STROBJ);
 				auto &map = 
 					(obj.type == CLSTYPE || obj.type == USERTYPE)? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
-				StrObj* strObj = sobj.value.strObj;
+				StrObj* strObj = ((StrObj*)sobj.value.userData->data);
 				auto p = map.insert(std::make_pair(strObj,value));
 				if (!p.second ){
 					map.erase(p.first);
@@ -473,7 +472,7 @@ void VirtualMachine::checkIndexType(Object& obj, Object& obj2){
 	if (!(obj.type & USEROBJ) && !(obj.type & LISTOBJ)){
 		throwError("target doesn't support getindex",TYPEERROR);
 	}
-	assert(obj2.type == STROBJ || obj2.type == NUMOBJ);
+	assert(obj2.type & STROBJ || obj2.type == NUMOBJ);
 	if (obj.type & LISTOBJ){
 		if(obj2.type != NUMOBJ)
 			throwError("index type error",TYPEERROR);
@@ -498,7 +497,7 @@ Object VirtualMachine::callCFunc(ClsType* type, std::string funcName, int newBas
 bool VirtualMachine::boolValue(Object& obj){
 	if (obj.type == NUMOBJ && obj.value.numval==0  ||  obj.type==NILOBJ  ||
 		obj.type == BOOLOBJ && obj.value.boolval==false ||
-		obj.type == STROBJ && obj.value.strObj->str==""){
+		obj.type & STROBJ && ((StrObj*)obj.value.userData->data)->str==""){
 		return false;
 	}		
 	else {
@@ -734,11 +733,11 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				break;
 			}
 			case GETINDEX:{
-				ofs << byteCodePos-1 << "\tCREATELIST\t"  << std::endl;
+				ofs << byteCodePos-1 << "\tGETINDEX\t"  << std::endl;
 				break;
 			}
 			case SETINDEX:{
-				ofs << byteCodePos-1 << "\tCREATEDICT\t"  << std::endl;
+				ofs << byteCodePos-1 << "\tSETINDEX\t"  << std::endl;
 				break;
 			}
 			default:assert(0);

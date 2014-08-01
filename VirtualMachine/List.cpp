@@ -51,7 +51,7 @@ Object listSet(void* state){
 
 void listInit(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	ClsType* cls = defineClass(state, "List");
+	ClsType* cls = defineClass(state, "list");
 	vm->listCls = cls;
 	assert(cls != NULL);
 	defineClassMethod(state, cls, "constructor", listNew, ANYARG);

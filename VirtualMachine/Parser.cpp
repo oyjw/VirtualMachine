@@ -98,8 +98,11 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 			}
 		}
 		case LBRACKET:
+			if (nListArgs >= 128){
+				tokenizer->error("the number of arguments exceeds", 0, ARGUMENTERROR);
+			}
 			byteCode->push_back((char)CALLFUNC);
-			pushWord(nListArgs);
+			byteCode->push_back((char)nListArgs);
 			break;
 		default: assert(0);
 	}
@@ -142,7 +145,6 @@ void Parser::parseOp(){
 	if (token->type == LBRACKET){
 		parseSeleOp();
 		byteCode->push_back((char)GETINDEX);
-		match(RBRACKET);
 		token = tokenizer->getToken();
 		recursion = true;
 	}
@@ -370,7 +372,7 @@ void Parser::basic(){
 	else if (token->type == LBRACKET){
 		auto pair = symTab->findSym("list");
 		if (pair.second == -1){
-			tokenizer->error("Unknown symbol",token->num,SYMBOLERROR);
+			tokenizer->error("class list not found",token->num,SYMBOLERROR);
 		}
 		byteCode->push_back(char(pair.first? PUSHGLOBAL: PUSHLOCAL));  
 		pushWord(pair.second); 
