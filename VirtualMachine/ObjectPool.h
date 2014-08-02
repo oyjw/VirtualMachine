@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include "Object.h"
-
+#include "List.h"
 bool mark(Object* obj);
 
 class ObjectPool{
@@ -19,8 +19,11 @@ public:
 			delete pobj;
 		}
 		for (auto &userData : userDataVec){
-			if(!userData.second)
-				delete userData.first->data;
+			if (!userData.second){
+				if (userData.first->type->clsName == "list")
+					delete (List*)userData.first->data;
+				else delete userData.first->data;	
+			}
 			delete userData.first;
 		}
 	}
@@ -43,8 +46,11 @@ public:
 				userDataVec[j++] = userDataVec[i];
 			}
 			else{
-				if (!userDataVec[i].second)
-					delete userDataVec[i].first->data;
+				if (!userDataVec[i].second){
+					if (userDataVec[i].first->type->clsName == "list")
+						delete (List*)userDataVec[i].first->data;
+					else delete userDataVec[i].first->data;	
+				}
 				delete userDataVec[i].first;
 			}
 		}

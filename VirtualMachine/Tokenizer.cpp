@@ -318,7 +318,7 @@ void Tokenizer::error(const std::string& message, int col, int errorType){
 	if (errorType == SYNTAXERROR)
  		throw SyntaxError(oss.str());
 	else if (errorType == SYMBOLERROR)
-		throw SymbolError(oss.str());
+ 		throw SymbolError(oss.str());
 	else if (errorType == TOKENERROR)
 		throw TokenError(oss.str());
 	else assert(0);

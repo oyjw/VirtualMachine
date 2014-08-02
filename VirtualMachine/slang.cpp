@@ -77,7 +77,7 @@ void* newState(){
 }
 
 void freeState(void* state){
-	delete state;
+	delete (VirtualMachine*)state;
 }
 
 void getArgs(void* state, int *len, Object** objects){
@@ -135,6 +135,6 @@ void parseFile(void* state, const char* fileName){
 	vm->byteCodePtr,vm->objectPoolPtr);
 	parser->program();
 	
-	vm->run("2.txt");
+	vm->run();
 	
 }

@@ -14,6 +14,7 @@ Object listNew(void* state){
 	for (int i = 0; i < len; ++i)
 		l->vec.push_back(objs[i]);
 	Object obj;
+	//delete []objs;
 	obj.type = USEROBJ | LISTOBJ;
 	obj.value.userData = new UserData(vm->listCls,l);
 	setGC(state, obj.value.userData);

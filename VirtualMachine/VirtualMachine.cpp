@@ -120,9 +120,9 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				stack.push_back(obj);
 				top++;
 				int newBase = top - 1;
+				stack[top-1] = callCFunc(this->strCls, "constructor", newBase);
 				nobjs++;
 				collect();
-				stack[top-1] = callCFunc(this->strCls, "constructor", newBase);
 				break;
 			}
 			case OP_ADD:{
@@ -133,11 +133,11 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					l.value.numval=result;
 				}
 				else if (l.type & STROBJ && r.type & STROBJ){
-					nobjs++;
-					collect();
 					std::string& leftStr = ((StrObj*)(l.value.userData->data))->str;
 					std::string& rightStr = ((StrObj*)(r.value.userData->data))->str;
 					l.value.userData->data = stringPoolPtr->putString(leftStr+rightStr);
+					nobjs++;
+					collect();
 				}
 				else{
 					throwError("operands don't support + operator",TYPEERROR);
@@ -261,7 +261,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
   				if (obj.type == USERTYPE){
 					nobjs++;
 					collect();
-					obj = callCFunc(obj.value.userData->type, "constructor", newBase);
+					obj = callCFunc(obj.value.clsType, "constructor", newBase);
 					top = newBase;
 					stack.resize(top);
 					break;
@@ -583,10 +583,11 @@ void VirtualMachine::collect(){
 	if (nobjs <= threshold)
 		return;
 	mark();
+	/*if (nobjs > threshold)
+		throwError("out of memory",0);*/
 	stringPoolPtr->collect();
 	objectPoolPtr->collect();
 	nobjs = stringPoolPtr->getStrNum() + (int)objectPoolPtr->getObjNum();
-	threshold = nobjs*2;
 }
 
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){

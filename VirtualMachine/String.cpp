@@ -20,7 +20,9 @@ static Object toStr(void* state){
 		}
 		default:assert(0);
 	}
-	return o;
+	Object result = o;
+	//delete[] objs;
+	return result;
 }
 
 Object strNew(void* state){

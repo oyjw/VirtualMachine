@@ -3,9 +3,10 @@
 #include "slang.h"
 
 int main(){
-	void *state = newState();
+	{void *state = newState();
 	parseFile(state,"1.txt");
 	freeState(state);
+	}
 	_CrtDumpMemoryLeaks();
 	return 0;
 }
