@@ -80,7 +80,7 @@ void freeState(void* state){
 	delete (VirtualMachine*)state;
 }
 
-void getArgs(void* state, int *len, Object** objects){
+void getArgs(void* state, int *len, Object* objects){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	vm->getArgs(len, objects);
 }
@@ -97,9 +97,6 @@ void setGC(void* state, UserData *userData){
 
 static Object subStr(void* state){
 	VirtualMachine *vm = new VirtualMachine();
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
 
 
 }
@@ -107,9 +104,6 @@ static Object subStr(void* state){
 
 static Object strFind(void* state){
 	VirtualMachine *vm = new VirtualMachine();
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
 
 
 }

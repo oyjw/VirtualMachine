@@ -5,11 +5,17 @@
 
 static Object toStr(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs;
-	getArgs(state, &len, &objs);
+	int len = 10;
+	Object objArr[10];
+	getArgs(state, &len, objArr);
+	Object* objs = objArr;
+	Object *objs2;
+	if (len != 10){
+		objs2 = new Object[len];
+		getArgs(state, &len, objs2);
+		objs = objs2;
+	}
 	Object& o = objs[0];
-	assert(len == 1);
 	switch (o.type){
 		case NUMOBJ:{
 			char buf[100];
