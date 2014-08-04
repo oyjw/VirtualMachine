@@ -85,6 +85,11 @@ void getArgs(void* state, int *len, Object* objects){
 	vm->getArgs(len, objects);
 }
 
+void getArgs2(void* state, int *len, Object** objects){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	vm->getArgs2(len, objects);
+}
+
 void setGC2(void* state, UserData *userData){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	vm->objectPoolPtr->putUserData(userData, true);

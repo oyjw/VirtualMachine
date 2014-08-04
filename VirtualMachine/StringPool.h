@@ -27,6 +27,7 @@ public:
 		size_t j = constants;
 		for (size_t i = constants; i < strings.size(); ++i){
 			if (strings[i]->mark){
+				strings[i]->mark = false;
 				strings[j++] = strings[i];
 			}
 			else{

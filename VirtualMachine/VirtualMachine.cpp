@@ -28,10 +28,14 @@ void VirtualMachine::checkCallable(Object& obj){
 }
 
 void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
-	if (nArgs == ANYARG) 
-		return;
 	char buf[100];
 	std::string msg;
+	if (nArgs == ANYARG) 
+		return;
+	else if(nArgs == EVENARG && actualNArgs % 2 != 0){
+		throwError("number of arguments must be even", ARGUMENTERROR);
+		return;
+	}
 	if (actualNArgs < nArgs){
 		msg = std::to_string(nArgs - actualNArgs);
 		msg = "missing " + msg + " arguments";
@@ -583,11 +587,11 @@ void VirtualMachine::collect(){
 	if (nobjs <= threshold)
 		return;
 	mark();
-	/*if (nobjs > threshold)
-		throwError("out of memory",0);*/
 	stringPoolPtr->collect();
 	objectPoolPtr->collect();
 	nobjs = stringPoolPtr->getStrNum() + (int)objectPoolPtr->getObjNum();
+	/*if (nobjs > threshold)
+		throwError("out of memory",0);*/
 }
 
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
@@ -813,6 +817,10 @@ StrObj* VirtualMachine::addStrObj(const std::string& str){
 		return stringPoolPtr->putString(str);
 	}
 	return stringPoolPtr->getStrObj(index);
+}
+
+StrObj* VirtualMachine::addStrObj2(const std::string& str){
+	return stringPoolPtr->putString(str);
 }
 
 StrObj* VirtualMachine::getStrObj(const std::string& str){

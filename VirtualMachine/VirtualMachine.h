@@ -48,7 +48,16 @@ public:
 			objs[i] = stack[framePointer + i];
 		}
 	}
+	void getArgs2(int* len, Object** objs){
+		int tmp = top - framePointer;
+		*len = tmp;
+		*objs = new Object[*len];
+		for (int i = 0; i < *len; ++i){
+			(*objs)[i] = stack[framePointer + i];
+		}
+	}
 	StrObj* addStrObj(const std::string& str);
+	StrObj* addStrObj2(const std::string& str);
 	StrObj* getStrObj(const std::string& str);
 	std::string getStackTrace();
 	void checkArgs(int, int);

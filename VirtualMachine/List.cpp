@@ -7,7 +7,7 @@
 
 Object listNew(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	int len = 10;
+	/*int len = 10;
 	Object objArr[10];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
@@ -16,12 +16,15 @@ Object listNew(void* state){
 		objs2 = new Object[len];
 		getArgs(state, &len, objs2);
 		objs = objs2;
-	}
+	}*/
+	int len;
+	Object* objs = NULL;
+	getArgs2(state, &len, &objs);
 	List* l = new List;
 	for (int i = 0; i < len; ++i)
 		l->vec.push_back(objs[i]);
 	Object obj;
-	//delete []objs;
+	delete []objs;
 	obj.type = USEROBJ | LISTOBJ;
 	obj.value.userData = new UserData(vm->listCls,l);
 	setGC(state, obj.value.userData);
@@ -34,12 +37,6 @@ Object listGet(void* state){
 	Object objArr[10];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
-	Object *objs2;
-	if (len != 10){
-		objs2 = new Object[len];
-		getArgs(state, &len, objs2);
-		objs = objs2;
-	}
 	List* l =(List*)objs[0].value.userData->data;
 	float index = objs[1].value.numval;
 	if (index < 0 || (size_t)index >= l->vec.size()){
@@ -54,12 +51,6 @@ Object listSet(void* state){
 	Object objArr[10];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
-	Object *objs2;
-	if (len != 10){
-		objs2 = new Object[len];
-		getArgs(state, &len, objs2);
-		objs = objs2;
-	}
 	List* l =(List*)objs[0].value.userData->data;
 	float index = objs[1].value.numval;
 	if (index < 0 || (size_t)index >= l->vec.size()){
