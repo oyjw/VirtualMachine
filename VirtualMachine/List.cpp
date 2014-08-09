@@ -2,8 +2,23 @@
 #include "VirtualMachine.h"
 #include "slang.h"
 #include "Object.h"
+#include "String.h"
+#include <sstream>
 
-
+static size_t checkIndex(void* state, List* list, Object& obj){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	if (obj.type != NUMOBJ){
+		vm->throwError("list index type isn't num",TYPEERROR);
+	}
+	float index = obj.value.numval;
+	if (index != (int)index){
+		vm->throwError("index isn't int",ARGUMENTERROR);
+	}
+	if (index < 0 || (size_t)index >= list->vec.size()){
+		vm->throwError("index out of range",ARGUMENTERROR);
+	}
+	return (size_t)index;
+}
 
 Object listNew(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
@@ -32,32 +47,68 @@ Object listNew(void* state){
 }
 
 Object listGet(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
 	int len = 10;
 	Object objArr[10];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
 	List* l =(List*)objs[0].value.userData->data;
-	float index = objs[1].value.numval;
-	if (index < 0 || (size_t)index >= l->vec.size()){
-		vm->throwError("index out of range",ARGUMENTERROR);
-	}
+	size_t index = checkIndex(state, l, objs[1]);
 	return l->vec[(size_t)index];
 }
 
 Object listSet(void* state){
-	VirtualMachine *vm = (VirtualMachine*)state;
 	int len = 10;
 	Object objArr[10];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
 	List* l =(List*)objs[0].value.userData->data;
-	float index = objs[1].value.numval;
-	if (index < 0 || (size_t)index >= l->vec.size()){
-		vm->throwError("index out of range",ARGUMENTERROR);
-	}
-	l->vec[(size_t)index] = objs[2];
+	size_t index = checkIndex(state, l, objs[1]);
+	
+	l->vec[index] = objs[2];
 	return {NILOBJ,{}};
+}
+
+Object listStr(void* state){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	int len = 1;
+	Object obj;
+	getArgs(state, &len, &obj);
+	List* l =(List*)obj.value.userData->data;
+	std::ostringstream oss;
+	oss << "[";
+	for (size_t i = 0; i < l->vec.size(); ++i){
+		oss << getStr(toStr(state, l->vec[i])) ;
+		if (i != l->vec.size()-1)
+			oss << ",";
+	}
+	oss << "]";
+	Object ret;
+	ret.type = STROBJ;
+	ret.value.strObj = vm->addStrObj(oss.str());
+	return ret;
+}
+
+Object listLen(void* state){
+	int len = 1;
+	Object obj;
+	getArgs(state, &len, &obj);
+	List* l =(List*)obj.value.userData->data;
+	Object ret;
+	ret.type = NUMOBJ;
+	ret.value.numval = (float)l->vec.size();
+	return ret;
+}
+
+Object listAppend(void* state){
+	int len;
+	Object *objs = NULL;
+	getArgs2(state, &len, &objs);
+	List* l =(List*)objs[0].value.userData->data;
+	for (int i = 1; i < len; ++i){
+		l->vec.push_back(objs[i]);
+	}
+	delete[]objs;
+	return NilObj;
 }
 
 void listInit(void* state){
@@ -68,4 +119,7 @@ void listInit(void* state){
 	defineClassMethod(state, cls, "constructor", listNew, ANYARG);
 	defineClassMethod(state, cls, "[]", listGet, 2);
 	defineClassMethod(state, cls, "[]=", listSet, 3);
+	defineClassMethod(state, cls, "str", listStr, 1);
+	defineClassMethod(state, cls, "len", listLen, 1);
+	defineClassMethod(state, cls, "append", listAppend, ANYARG);
 }

@@ -8,7 +8,9 @@
 #include "StringPool.h"
 #include "ObjectPool.h"
 #include "List.h"
+#include "Dict.h"
 #include "String.h"
+#include <iostream>
 
 const char* errorMsg[] = {
 	"symbol already exist",
@@ -55,7 +57,7 @@ int defineClassMethod(void* state, void* cls, char* funcName, cFunc func, int nA
 }
 
 int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
-	VirtualMachine *vm = new VirtualMachine();
+	VirtualMachine *vm = (VirtualMachine*)state;
 	if (vm->symTab->isSymExistLocal(funcName)){
 		return SYMBOLEXIST;
 	}
@@ -65,15 +67,17 @@ int defineMethod(void* state, char* funcName, cFunc func, int nArgs){
 	object.value.cFunObj = new CFunObj;
 	object.value.cFunObj->functionName = funcName;
 	object.value.cFunObj->fun = func;
+	object.value.cFunObj->nArgs = nArgs;
 	vm->symTab->putObj(index, object);
 	return 0;
 }
 
 void* newState(){
 	VirtualMachine *vm = new VirtualMachine();
-	listInit((void*)vm);
+	listInit(vm);
 	strInit(vm);
-	return (void*)vm;
+	dictInit(vm);
+	return vm;
 }
 
 void freeState(void* state){
@@ -100,18 +104,6 @@ void setGC(void* state, UserData *userData){
 	vm->objectPoolPtr->putUserData(userData, false);
 }
 
-static Object subStr(void* state){
-	VirtualMachine *vm = new VirtualMachine();
-
-
-}
-
-
-static Object strFind(void* state){
-	VirtualMachine *vm = new VirtualMachine();
-
-
-}
 
 Object functionCall(void* state, const char* name, int len, Object* object){
 	VirtualMachine *vm = (VirtualMachine*)state;
@@ -132,8 +124,11 @@ void parseFile(void* state, const char* fileName){
 	Tokenizer* tokenizer = new Tokenizer(fileName);
 	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,
 	vm->byteCodePtr,vm->objectPoolPtr);
-	parser->program();
-	
-	vm->run();
-	
+	/*try{*/
+		parser->program();
+		vm->run();
+	/*}
+	catch(std::exception& e){
+		std::cerr << e.what();
+	}*/
 }

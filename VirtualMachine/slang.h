@@ -11,9 +11,10 @@ extern "C" {
 #define TYPEERROR 0
 #define ATTRERROR 1
 #define ARGUMENTERROR 2
-#define SYNTAXERROR 3
-#define SYMBOLERROR 4
-#define TOKENERROR 5
+#define MEMORYERROR 3
+#define SYNTAXERROR 4
+#define SYMBOLERROR 5
+#define TOKENERROR 6
 
 #define ANYARG -1
 #define EVENARG -2

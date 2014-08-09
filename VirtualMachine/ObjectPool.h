@@ -6,6 +6,7 @@
 
 #include "Object.h"
 #include "List.h"
+#include "Dict.h"
 bool mark(Object* obj);
 
 class ObjectPool{
@@ -22,8 +23,10 @@ public:
 			if (!userData.second){
 				if (userData.first->type->clsName == "list")
 					delete (List*)userData.first->data;
+				else if (userData.first->type->clsName == "dict")
+					delete (Dict*)userData.first->data;
 				else delete userData.first->data;	
-			}
+			} 
 			delete userData.first;
 		}
 	}
@@ -49,6 +52,8 @@ public:
 				if (!userDataVec[i].second){
 					if (userDataVec[i].first->type->clsName == "list")
 						delete (List*)userDataVec[i].first->data;
+					else if (userDataVec[i].first->type->clsName == "dict")
+						delete (Dict*)userDataVec[i].first->data;
 					else delete userDataVec[i].first->data;	
 				}
 				delete userDataVec[i].first;

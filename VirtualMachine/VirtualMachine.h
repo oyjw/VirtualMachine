@@ -57,7 +57,6 @@ public:
 		}
 	}
 	StrObj* addStrObj(const std::string& str);
-	StrObj* addStrObj2(const std::string& str);
 	StrObj* getStrObj(const std::string& str);
 	std::string getStackTrace();
 	void checkArgs(int, int);
@@ -71,9 +70,12 @@ public:
 	ClsType* listCls;
 	ClsType* dictCls;
 	ClsType* strCls;
+	Object callCFunc(ClsType* type, std::string funcName, int newBase);
+	size_t getFP(){
+		return framePointer;
+	}
 private:
 	void checkIndexType(Object& obj, Object& obj2);
-	Object callCFunc(ClsType* type, std::string funcName, int newBase);
 	bool boolValue(Object& obj);
 	void mark();
 	void collect();

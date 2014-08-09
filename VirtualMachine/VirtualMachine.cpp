@@ -9,13 +9,14 @@
 #include "Parser.h"
 #include "ObjectPool.h"
 #include "List.h"
+#include "String.h"
 #include <cassert>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 
-VirtualMachine::VirtualMachine():threshold(100), nobjs(0), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
+VirtualMachine::VirtualMachine():threshold(1000), nobjs(0), top(0), framePointer(0), symTab(new SymbolTable), byteCodePtr(new ByteCode),
 	stringPoolPtr(new StringPool), objectPoolPtr(new ObjectPool), callInfoPtr(new CallInfo), listCls(NULL), dictCls(NULL), strCls(NULL) {
 	callInfoPtr->funcName = "main";
 }
@@ -28,7 +29,6 @@ void VirtualMachine::checkCallable(Object& obj){
 }
 
 void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
-	char buf[100];
 	std::string msg;
 	if (nArgs == ANYARG) 
 		return;
@@ -48,34 +48,10 @@ void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
 	}
 }
 
-void printFunc(Object& obj){
-	switch (obj.type){
-		case NUMOBJ:std::cout << (int)obj.value.numval << std::endl; break;
-		case NILOBJ:std::cout << "None" <<std::endl; break;
-		case CLSOBJ:{
-			std::cout << obj.value.clsObj->clsType->clsName << " object" <<std::endl; break;
-		}
-		case CLSTYPE:{
-			std::cout << "class " << obj.value.clsType->clsName<<std::endl; break;
-		}
-		case FUNOBJ:{
-
-		}
-		case CFUNOBJ:{
-
-		}
-		default:{
-			if (obj.type & METHOD && obj.type & FUNOBJ){
-
-			}
-			else if (obj.type & METHOD && obj.type & CFUNOBJ){
-
-			}
-			else{
-						
-			}
-		}
-	}
+void printFunc(const Object& obj){
+	assert(obj.type & STROBJ);
+	std::cout << getStr(obj) << std::endl;
+	system("pause");
 }
 
 int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byteCodePos){
@@ -116,6 +92,22 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				top++;
 				break;
 			}
+			case PUSHTRUE:{
+				Object obj;
+				obj.type = BOOLOBJ;
+				obj.value.boolval = true;
+				stack.push_back(obj);
+				top++;
+				break;
+			}
+			case PUSHFALSE:{
+				Object obj;
+				obj.type = BOOLOBJ;
+				obj.value.boolval = false;
+				stack.push_back(obj);
+				top++;
+				break;
+			}
 			case PUSHSTRING:{
 				int index = getWord(byteCodes,byteCodePos);
 				Object obj;
@@ -139,9 +131,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				else if (l.type & STROBJ && r.type & STROBJ){
 					std::string& leftStr = ((StrObj*)(l.value.userData->data))->str;
 					std::string& rightStr = ((StrObj*)(r.value.userData->data))->str;
-					l.value.userData->data = stringPoolPtr->putString(leftStr+rightStr);
-					nobjs++;
-					collect();
+					l.value.userData->data = addStrObj(leftStr+rightStr);
 				}
 				else{
 					throwError("operands don't support + operator",TYPEERROR);
@@ -271,7 +261,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 					break;
 				} 
 				else if (obj.type == CLSTYPE){
- 					nobjs++;
+  					nobjs++;
 					collect();
 					Object newObj;
 					newObj.type = CLSOBJ;
@@ -358,10 +348,10 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			}
 			case PRINTFUNC:{
 				Object& obj = stack[top-1];
-				printFunc(obj);
+				framePointer = top - 1;
+				printFunc(toStr(this,obj));
 				top--;
 				stack.resize(top);
-				system("pause");
 				break;
 			}
 			case GETATTR:{
@@ -435,33 +425,23 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				auto &map = 
 					(obj.type == CLSTYPE || obj.type == USERTYPE)? obj.value.clsType->clsAttrs:obj.value.clsObj->attrs;
 				StrObj* strObj = ((StrObj*)sobj.value.userData->data);
-				auto p = map.insert(std::make_pair(strObj,value));
-				if (!p.second ){
-					map.erase(p.first);
-					map.insert(p.first,std::make_pair(strObj,value));
-				}
+				map[strObj] = value;
 				top = top - 3;
 				stack.resize(top);
 				break;
 			}
 			case GETINDEX:{
 				Object &obj = stack[top-2];
-				Object &obj2 = stack[top-1];
-				checkIndexType(obj,obj2);
-
 				int newBase = top - 2;
-				obj = callCFunc(this->listCls, "[]", newBase);
+				obj = callCFunc(obj.value.userData->type, "[]", newBase);
 				top = newBase + 1;
 				stack.resize(top);
 				break;
 			}
 			case SETINDEX:{
 				Object &obj = stack[top-3];
-				Object &obj2 = stack[top-2];
-				Object &value = stack[top-1];
-				checkIndexType(obj,obj2);
 				int newBase = top - 3;
-				obj = callCFunc(this->listCls, "[]=", newBase);
+				obj = callCFunc(obj.value.userData->type, "[]=", newBase);
 				top = newBase;
 				stack.resize(top);
 				break;
@@ -470,17 +450,6 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 		}
 	}
 	return 0;
-}
-
-void VirtualMachine::checkIndexType(Object& obj, Object& obj2){
-	if (!(obj.type & USEROBJ) && !(obj.type & LISTOBJ)){
-		throwError("target doesn't support getindex",TYPEERROR);
-	}
-	assert(obj2.type & STROBJ || obj2.type == NUMOBJ);
-	if (obj.type & LISTOBJ){
-		if(obj2.type != NUMOBJ)
-			throwError("index type error",TYPEERROR);
-	}
 }
 
 Object VirtualMachine::callCFunc(ClsType* type, std::string funcName, int newBase){
@@ -513,8 +482,7 @@ void VirtualMachine::compute(int opcode){
 	Object& l = stack[top - 2];
 	Object& r = stack[top - 1];
 	if (l.type != NUMOBJ || r.type != NUMOBJ){
-		std::ostringstream oss;
-		throw TypeError(oss.str());
+		throwError("operand of arithmetic operator is not num",TYPEERROR);
 	}
 	float result = 0.0;
 	switch (opcode){
@@ -532,8 +500,7 @@ void VirtualMachine::compare(int opcode){
 	Object& l = stack[top - 2];
 	Object& r = stack[top - 1];
 	if (l.type != NUMOBJ || r.type != NUMOBJ){
-		std::ostringstream oss;
-		throw TypeError(oss.str());
+		throwError("operand of relation operator is not num",TYPEERROR);
 	}
 	bool b = false;
 	switch (opcode){
@@ -551,13 +518,20 @@ void VirtualMachine::compare(int opcode){
 	stack.resize(top);
 }
 
-void markObject(Object& obj){
+void markObject(const Object& obj){
 	if (obj.type & USEROBJ){
 		obj.value.userData->mark = true;
 		if (obj.type & LISTOBJ){
 			List* list = (List*)obj.value.userData->data;
 			for (auto& obj : list->vec){
 				markObject(obj);
+			}
+		}
+		if (obj.type & DICTOBJ){
+			Dict* dict = (Dict*)obj.value.userData->data;
+			for (auto pair : dict->attrs){
+				markObject(pair.first);
+				markObject(pair.second);
 			}
 		}
 		else if (obj.type & STROBJ){
@@ -589,9 +563,9 @@ void VirtualMachine::collect(){
 	mark();
 	stringPoolPtr->collect();
 	objectPoolPtr->collect();
-	nobjs = stringPoolPtr->getStrNum() + (int)objectPoolPtr->getObjNum();
-	/*if (nobjs > threshold)
-		throwError("out of memory",0);*/
+	nobjs = (int)objectPoolPtr->getObjNum();
+	if (nobjs > threshold)
+		throwError("out of memory",MEMORYERROR);
 }
 
 void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
@@ -626,6 +600,16 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1;
 				float f = getFloat(byteCodes,byteCodePos);
 				ofs << "\tPUSHREAL\t" << f << std::endl;
+				break;
+			}
+			case PUSHTRUE:{
+				ofs << byteCodePos-1;
+				ofs << "\tPUSHTRUE\t" << std::endl;
+				break;
+			}
+			case PUSHFALSE:{
+				ofs << byteCodePos-1;
+				ofs << "\tPUSHFALSEL\t" << std::endl;
 				break;
 			}
 			case PUSHSTRING:{
@@ -812,14 +796,7 @@ bool VirtualMachine::pushFunObj(const std::string& symbol){
 }
 
 StrObj* VirtualMachine::addStrObj(const std::string& str){
-	int index = stringPoolPtr->getStringConstant(str);
-	if (index == -1){
-		return stringPoolPtr->putString(str);
-	}
-	return stringPoolPtr->getStrObj(index);
-}
-
-StrObj* VirtualMachine::addStrObj2(const std::string& str){
+	nobjs++;
 	return stringPoolPtr->putString(str);
 }
 
@@ -844,7 +821,7 @@ std::string VirtualMachine::getStackTrace(){
 }
 
 const char* emsg[] = {
-	"TypeError", "AttrError", "ArgumentError"
+	"TypeError", "AttrError", "ArgumentError", "MemoryError"
 };
 
 void VirtualMachine::throwError(const std::string msg, int type){
@@ -852,5 +829,11 @@ void VirtualMachine::throwError(const std::string msg, int type){
 	std::ostringstream oss;
 	oss << msg << "\t" << emsg[type] << std::endl;
 	oss << getStackTrace();
-	throw std::runtime_error(oss.str());
+	switch(type){
+		case TYPEERROR: throw TypeError(oss.str());
+		case ATTRERROR: throw AttrError(oss.str());
+		case ARGUMENTERROR: throw ArgumentError(oss.str());
+		case MEMORYERROR: throw MemoryError(oss.str());
+		default:assert(0);
+	}
 }

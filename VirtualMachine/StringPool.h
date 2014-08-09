@@ -13,9 +13,9 @@ private:
 	size_t constants;
 public:
 	StringPool() :constants(0) {
-		putStringConstant("constructor");
-		putStringConstant("[]");
-		putStringConstant("[]=");
+		putStringConstant("None");
+		putStringConstant("True");
+		putStringConstant("False");
 		putStringConstant("__init__");
 	}
 	~StringPool(){

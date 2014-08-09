@@ -93,17 +93,18 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 			break;
 		}
 		case LBRACE:{
-			if (nListArgs / 2 != 0){
+			if (nListArgs % 2 != 0){
 				tokenizer->error("the number of arguments is wrong", 0, ARGUMENTERROR);
 			}
 		}
-		case LBRACKET:
+		case LBRACKET:{
 			if (nListArgs >= 128){
 				tokenizer->error("the number of arguments exceeds", 0, ARGUMENTERROR);
 			}
 			byteCode->push_back((char)CALLFUNC);
 			byteCode->push_back((char)nListArgs);
 			break;
+		}
 		default: assert(0);
 	}
 }
@@ -378,6 +379,23 @@ void Parser::basic(){
 		pushWord(pair.second); 
 		rvalue();
 	}
+	else if (token->type == LBRACE){
+		auto pair = symTab->findSym("dict");
+		if (pair.second == -1){
+			tokenizer->error("class dict not found",token->num,SYMBOLERROR);
+		}
+		byteCode->push_back(char(pair.first? PUSHGLOBAL: PUSHLOCAL));  
+		pushWord(pair.second); 
+		rvalue();
+	}
+	else if (token->type == RESERVEDTRUE) {
+		byteCode->push_back(PUSHTRUE);
+		tokenizer->advance();
+	}
+	else if (token->type == RESERVEDFALSE) {
+		byteCode->push_back(PUSHFALSE);
+		tokenizer->advance();
+	}
 	else {
 		tokenizer->error("syntax error",token->num);
 	}
@@ -398,6 +416,7 @@ void Parser::elem(){
 	else if (token->type == CLASS)
 		classDefinition();
 	else stmt();
+	match(SEMICOLON);
 }
 
 void Parser::stmt(){
@@ -406,7 +425,6 @@ void Parser::stmt(){
 		pushWord(tokenizer->getlinenum());
 		debugLine = tokenizer->getlinenum();
 	}
-	bool matchSemi=true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
 		if (tokenizer->isAssignStmt)
@@ -426,14 +444,12 @@ void Parser::stmt(){
 	}
 	else if (token->type == IF){
 		ifStmt();
-		matchSemi=false;
 	}
 	else if (token->type == VAR){
 		declarations();
 	}
 	else if (token->type == WHILE){
 		whileStmt();
-		matchSemi=false;
 	}
 	else if (token->type == BREAK){
 		breakStmt();
@@ -444,8 +460,6 @@ void Parser::stmt(){
 	else {
 		tokenizer->error("syntax error",token->num);
 	}
-	if(matchSemi)
-		match(SEMICOLON);
 }
 
 void Parser::printStmt(){

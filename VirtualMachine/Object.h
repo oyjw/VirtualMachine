@@ -6,10 +6,10 @@
 #include <cassert>
 #define NILOBJ  0
 #define NUMOBJ  1
-#define BOOLOBJ 3
-#define USERTYPE 4
-#define CLSOBJ  6
-#define CLSTYPE 7
+#define BOOLOBJ 2
+#define USERTYPE 3
+#define CLSOBJ  4
+#define CLSTYPE 5
 #define FUNOBJ  1<<3
 #define CFUNOBJ 1<<4
 #define METHOD  1<<5
@@ -21,8 +21,8 @@
 
 class StrObj {
 public:
-	std::string str;
 	bool mark;
+	std::string str;
 	StrObj() :mark(false) {}
 	StrObj(const std::string& s):str(s),mark(false) {}
 };
@@ -100,7 +100,7 @@ struct Object{
 	} value;
 };
 
-
+static Object NilObj = { NILOBJ, {} };
 
 
 struct Symbol{
