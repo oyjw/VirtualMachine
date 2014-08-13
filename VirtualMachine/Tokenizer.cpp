@@ -215,7 +215,8 @@ void Tokenizer::scan(){
 		}
 		case 6:{
 			Token& lastToken = tokenVec[tokenVec.size() - 1];
-			if (lastToken.type != SEMICOLON &&lastToken.type != LBRACE ){
+			if ((lastToken.type != SEMICOLON && lastToken.type != LBRACE
+				&& lastToken.type != RBRACE) || (lastToken.type == RBRACE && isAssignStmt)){
 				token.type = SEMICOLON;
 				pushtoken = true;
 			}

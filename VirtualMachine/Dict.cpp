@@ -2,7 +2,8 @@
 #include "VirtualMachine.h"
 #include "slang.h"
 #include "Object.h"
-
+#include "String.h"
+#include <sstream>
 
 void checkKeyType(void* state, Object& key){
 	VirtualMachine *vm = (VirtualMachine*)state;
@@ -71,6 +72,28 @@ Object dictSet(void* state){
 	//return iter->second;
 }
 
+Object dictStr(void* state){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	int len = 1;
+	Object obj;
+	getArgs(state, &len, &obj);
+	Dict* dict =(Dict*)obj.value.userData->data;
+	std::ostringstream oss;
+	oss << "{";
+	auto iter = dict->attrs.begin();
+	for (; iter != dict->attrs.end(); ++iter){
+		oss << toPrintableStr(state, iter->first,true) << ":" << toPrintableStr(state, iter->second, true);
+		auto iter2 = --dict->attrs.end();
+		if (iter != iter2)
+			oss << ",";
+	}
+	oss << "}";
+	Object ret;
+	ret.type = STROBJ;
+	ret.value.strObj = vm->addStrObj(oss.str());
+	return ret;
+}
+
 void dictInit(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	ClsType* cls = defineClass(state, "dict");
@@ -79,4 +102,5 @@ void dictInit(void* state){
 	defineClassMethod(state, cls, "constructor", dictNew, EVENARG);
 	defineClassMethod(state, cls, "[]", dictGet, 2);
 	defineClassMethod(state, cls, "[]=", dictSet, 3);
+	defineClassMethod(state, cls, "str", dictStr, 1);
 }

@@ -74,6 +74,16 @@ public:
 	size_t getFP(){
 		return framePointer;
 	}
+	void setFP(size_t fp){
+		framePointer = fp;
+	}
+	int getTop(){
+		return top;
+	}
+	void setTop(int t){
+		top = t;
+		stack.resize(top);
+	}
 private:
 	void checkIndexType(Object& obj, Object& obj2);
 	bool boolValue(Object& obj);

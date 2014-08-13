@@ -40,7 +40,7 @@ int main(int argc, const char* argv[]){
 	{std::string srcFile, printFile;
 	parseOpt(argc-1, &argv[1], srcFile, printFile);
 	void *state = newState();
-	parseFile(state,"1.txt");
+	parseFile(state,srcFile.c_str(),printFile.c_str());
 	freeState(state);
 	}
 	_CrtDumpMemoryLeaks();

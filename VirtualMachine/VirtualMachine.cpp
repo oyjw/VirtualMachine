@@ -34,6 +34,8 @@ void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
 		return;
 	else if(nArgs == EVENARG && actualNArgs % 2 != 0){
 		throwError("number of arguments must be even", ARGUMENTERROR);
+	}
+	else if (nArgs == EVENARG){
 		return;
 	}
 	if (actualNArgs < nArgs){
@@ -48,9 +50,8 @@ void VirtualMachine::checkArgs(int actualNArgs, int nArgs){
 	}
 }
 
-void printFunc(const Object& obj){
-	assert(obj.type & STROBJ);
-	std::cout << getStr(obj) << std::endl;
+void printFunc(const std::string& str){
+	std::cout << str << std::endl;
 	system("pause");
 }
 
@@ -146,6 +147,10 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			}
 			case OP_MUL:{
 				compute(OP_MUL);
+				break;
+			}
+			case OP_MOD:{
+				compute(OP_MOD);
 				break;
 			}
 			case OP_DIV:{
@@ -349,7 +354,7 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 			case PRINTFUNC:{
 				Object& obj = stack[top-1];
 				framePointer = top - 1;
-				printFunc(toStr(this,obj));
+				printFunc(toPrintableStr(this, obj, true));
 				top--;
 				stack.resize(top);
 				break;
@@ -489,6 +494,14 @@ void VirtualMachine::compute(int opcode){
 		case OP_SUB:result=l.value.numval - r.value.numval; break;
 		case OP_MUL:result=l.value.numval * r.value.numval; break;
 		case OP_DIV:result=l.value.numval / r.value.numval; break;
+		case OP_MOD:{
+			int left = (int)l.value.numval;
+			int right = (int)r.value.numval;
+			if (left != l.value.numval || right != r.value.numval){
+				throwError("operand of mod operator is not integral",ARGUMENTERROR);
+			}
+			result =float(left % right); break;
+		}
 		default:assert(0);
 	}
 	l.value.numval=result;
@@ -630,7 +643,10 @@ void VirtualMachine::dump(std::vector<char> &byteCodes,std::ofstream& ofs){
 				ofs << byteCodePos-1 << "\tOP_MUL\t" << std::endl;
 				break;
 			}
-
+			case OP_MOD:{
+				ofs << byteCodePos-1 << "\tOP_MOD\t" << std::endl;
+				break;
+			}
 			case OP_DIV:{
 				ofs << byteCodePos-1 << "\tOP_DIV\t" << std::endl;
 				break;

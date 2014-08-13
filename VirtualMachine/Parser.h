@@ -89,8 +89,8 @@ public:
 	void funcArgs(Token* function);
 	void parseSeleOp();
 	void classDefinition();
-	bool parseValue(int& type, int& index);
-	void pushValue(int type, int index, bool isGlobal);
+	bool parseValue(int& type, int& index, int& nArgs);
+	void pushValue(int type, int index, bool isGlobal, int nArgs);
 	void parseOp();
 	bool lvalue();
 	void rvalue();
@@ -115,7 +115,6 @@ private:
 	bool isClassConstructor;
 	size_t clsIndex;
 	int debugLine;
-	int nListArgs;
 
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 	LoopLabelPtr loopLabelPtr;

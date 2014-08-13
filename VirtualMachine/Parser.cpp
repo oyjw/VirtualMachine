@@ -30,7 +30,7 @@ std::pair<bool, int> Parser::parseIden(Token* token){
 	return pair;
 }
 
-bool Parser::parseValue(int& type, int& index){
+bool Parser::parseValue(int& type, int& index, int& nArgs){
 	Token* token = tokenizer->getToken();
 	tokenizer->advance();
 	if (token->type == IDEN){
@@ -44,12 +44,12 @@ bool Parser::parseValue(int& type, int& index){
 		type = STRING;
 	}
 	else if (token->type == LBRACKET){
-		nListArgs = 0;
+		nArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACKET){
 			while (1){
 				orExpr();
-				nListArgs++;
+				nArgs++;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -60,14 +60,14 @@ bool Parser::parseValue(int& type, int& index){
 		type = LBRACKET;
 	}
 	else if (token->type == LBRACE){
-		nListArgs = 0;
+		nArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACE){
 			while (1){
 				orExpr();
 				match(COLON);
 				orExpr();
-				nListArgs+=2;
+				nArgs+=2;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -80,7 +80,7 @@ bool Parser::parseValue(int& type, int& index){
 	return false;
 }
 
-void Parser::pushValue(int type, int index, bool isGlobal ){
+void Parser::pushValue(int type, int index, bool isGlobal, int nArgs){
 	switch (type){
 		case IDEN:{
 			byteCode->push_back(char(isGlobal? PUSHGLOBAL: PUSHLOCAL));  
@@ -93,16 +93,16 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 			break;
 		}
 		case LBRACE:{
-			if (nListArgs % 2 != 0){
+			if (nArgs % 2 != 0){
 				tokenizer->error("the number of arguments is wrong", 0, ARGUMENTERROR);
 			}
 		}
 		case LBRACKET:{
-			if (nListArgs >= 128){
+			if (nArgs >= 128){
 				tokenizer->error("the number of arguments exceeds", 0, ARGUMENTERROR);
 			}
 			byteCode->push_back((char)CALLFUNC);
-			byteCode->push_back((char)nListArgs);
+			byteCode->push_back((char)nArgs);
 			break;
 		}
 		default: assert(0);
@@ -113,7 +113,7 @@ bool Parser::lvalue(){
 	Token* token = tokenizer->getToken();
 	match(IDEN);
 	auto pair = parseIden(token);
-	pushValue(IDEN, pair.second, pair.first);
+	pushValue(IDEN, pair.second, pair.first, 0);
 	token = tokenizer->getToken();
 	bool isPeriod = false;
 	while(token->type == PERIOD || token->type == LBRACKET){
@@ -129,8 +129,9 @@ bool Parser::lvalue(){
 
 void Parser::rvalue(){
 	int type, index;
-	bool isGlobal = parseValue(type, index);
-	pushValue(type, index, isGlobal);
+	int nArgs = 0;
+	bool isGlobal = parseValue(type, index, nArgs);
+	pushValue(type, index, isGlobal, nArgs);
 	parseOp();
 }
 
@@ -337,6 +338,12 @@ void Parser::factor2(){
 		byteCode->push_back((char)OP_DIV);
 		factor2();
 	}
+	else if (tokenizer->getToken()->type == MOD){
+		tokenizer->advance();
+		basic();
+		byteCode->push_back((char)OP_MOD);
+		factor2();
+	}
 }
 
 void Parser::basic(){
@@ -411,12 +418,13 @@ void Parser::program(){
 
 void Parser::elem(){
 	Token* token = tokenizer->getToken();
-	if (token->type == FUNCTION)
+	if (token->type == FUNCTION){
 		function();
-	else if (token->type == CLASS)
+	}
+	else if (token->type == CLASS){
 		classDefinition();
+	}
 	else stmt();
-	match(SEMICOLON);
 }
 
 void Parser::stmt(){
@@ -425,6 +433,7 @@ void Parser::stmt(){
 		pushWord(tokenizer->getlinenum());
 		debugLine = tokenizer->getlinenum();
 	}
+	bool matchSemi = true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
 		if (tokenizer->isAssignStmt)
@@ -444,12 +453,14 @@ void Parser::stmt(){
 	}
 	else if (token->type == IF){
 		ifStmt();
+		matchSemi = false;
 	}
 	else if (token->type == VAR){
 		declarations();
 	}
 	else if (token->type == WHILE){
 		whileStmt();
+		matchSemi = false;
 	}
 	else if (token->type == BREAK){
 		breakStmt();
@@ -460,6 +471,8 @@ void Parser::stmt(){
 	else {
 		tokenizer->error("syntax error",token->num);
 	}
+	if (matchSemi)
+		match(SEMICOLON);
 }
 
 void Parser::printStmt(){

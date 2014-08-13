@@ -119,14 +119,17 @@ Object functionCall(void* state, const char* name, int len, Object* object){
 	return {NILOBJ,{}};
 }
 
-void parseFile(void* state, const char* fileName){
+void parseFile(void* state, const char* fileName, const char* destFile){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	Tokenizer* tokenizer = new Tokenizer(fileName);
 	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,
 	vm->byteCodePtr,vm->objectPoolPtr);
 	/*try{*/
 		parser->program();
-		vm->run();
+		if (strlen(destFile) !=0)
+		vm->run(destFile);
+		else 
+			vm->run();
 	/*}
 	catch(std::exception& e){
 		std::cerr << e.what();

@@ -77,7 +77,7 @@ Object listStr(void* state){
 	std::ostringstream oss;
 	oss << "[";
 	for (size_t i = 0; i < l->vec.size(); ++i){
-		oss << getStr(toStr(state, l->vec[i])) ;
+		oss << toPrintableStr(state, l->vec[i],true);
 		if (i != l->vec.size()-1)
 			oss << ",";
 	}

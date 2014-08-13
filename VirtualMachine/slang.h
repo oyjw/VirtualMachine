@@ -21,7 +21,7 @@ extern "C" {
 int defineMethod(void* state,cFunc func);
 void* newState();
 void freeState(void* state);
-void parseFile(void* state, const char* fileName);
+void parseFile(void* state, const char* fileName, const char* destFile);
 void getArgs(void* state, int *len, Object* objects);
 void getArgs2(void* state, int *len, Object** objects);
 ClsType* defineClass(void* state, char* className);

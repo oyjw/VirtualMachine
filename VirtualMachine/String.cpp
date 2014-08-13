@@ -4,15 +4,78 @@
 #include "Object.h"
 #include <string>
 
-std::string& getStr(const Object& obj){
-	assert(obj.type & STROBJ);
-	if (obj.type == STROBJ)
-		return obj.value.strObj->str;
-	else
-		return ((StrObj*)obj.value.userData->data)->str;
+std::string toPrintableStr(void* state,const Object& o,bool addQuote){
+	VirtualMachine *vm = (VirtualMachine*)state;
+	std::string ret;
+	switch (o.type){
+		case NILOBJ:{
+			ret = "None";
+			break;
+		}
+		case BOOLOBJ:{
+			ret =  o.value.boolval? "True": "False";
+			break;
+		}
+		case NUMOBJ:{
+			bool isInteger = (o.value.numval == (int)o.value.numval)? true: false;
+			std::string s;
+			if (isInteger)
+				ret = std::to_string((int)o.value.numval);
+			else
+				ret = std::to_string(o.value.numval);
+			break;
+		}
+		case STROBJ: {
+			if (addQuote)
+				ret = "\"" + o.value.strObj->str + "\"";
+			else 
+				ret = o.value.strObj->str;
+			break;
+		}
+		case FUNOBJ:{
+			ret = "function " + o.value.funObj->functionName;
+		}
+		case CFUNOBJ:{
+			ret = "cFunction " + o.value.cFunObj->functionName;
+		}
+		case CLSTYPE:
+		case USERTYPE:{
+			ret = "class " + o.value.clsType->clsName;
+		}
+		case CLSOBJ:{
+			ret = "object " + o.value.clsObj->clsType->clsName;			 
+		}
+		default:{
+			if (o.type & METHOD){
+				ret = "method " + o.value.method.self->clsType->clsName + "." + 
+					(o.type & FUNOBJ ? o.value.method.funObj->functionName:
+						o.value.method.cFunObj->functionName);
+			}
+			else if (o.type & USEROBJ){
+				if (o.type & STROBJ){
+					if (addQuote)
+						ret = "\"" + ((StrObj*)o.value.userData->data)->str + "\"";
+					else 
+						ret = ((StrObj*)o.value.userData->data)->str;
+				}
+				else {
+					size_t fp = vm->getFP();
+					int top = vm->getTop();
+					vm->pushObject(o);
+					vm->setFP(top);
+					std::string& str = vm->callCFunc(o.value.userData->type, "str", vm->getFP()).value.strObj->str;
+					vm->setFP(fp);
+					vm->setTop(top);
+					return str;
+				}
+			}
+			else assert(0);
+		}
+	}
+	return ret;
 }
 
-Object toStr(void* state, Object& o){
+Object toStr(void* state, const Object& o){
 	VirtualMachine *vm = (VirtualMachine*)state;
 	Object result;
 	result.type = STROBJ;
