@@ -1,0 +1,88 @@
+var a=1*(8+9)+-9--4
+print a
+func test(n){
+	if(n<2 ) return 1
+	return n*test(n-1)
+}
+
+func fab(n){
+	if(n<=2) return n-1;
+	return fab(n-1)+fab(n-2);
+}
+
+func t0(){
+	print a
+	var a=1
+	print a
+}
+var result=0
+while(a){
+	result=result+a
+	a=a-1
+}
+print result
+
+a=test(5)
+
+print a
+
+print fab(13)
+
+
+t0()
+
+class A(){
+	func __init__(self){
+		self.a = 13
+	}
+	func b(self){
+		print self.a
+		print a
+	}
+}
+
+var b=A()
+
+print b.a
+b.b()
+if(b.a==13){
+var c=[1,3,4]
+c.append("k86h",87,{8:965,"kkk":[98,44,22]})
+print c[5]
+print c
+}
+
+var d = {"33":"wofjsf","323":"sldfj","c":"apple"}
+print d[1]
+print d["c"]
+print d
+print str("sldfjsdlfjs")
+print [1,2,3]
+print [[3.22,522,"sdfj93"],2,[1,[2,54,"dsf"],87]]
+
+print 1<8 and 2+7<22
+print 11<9 or 98>999
+
+var i = 0
+var e = str("wo shi shui")
+while (i<e.len()){
+	print e[i]
+	i = i+1
+}
+
+i = 0
+while(i<e.len()){
+	if(i%2 == 0){
+		e[i]="2"
+	}
+	else{
+		e[i]="1"
+	}
+	i=i+1
+}
+print e
+
+
+
+
+

@@ -3,24 +3,26 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-
+#include <cassert>
 #define NILOBJ  0
 #define NUMOBJ  1
-#define STROBJ  2
-#define CLSOBJ  3
-#define CLSTYPE 4
-#define BOOLOBJ 5
-#define USERDATA 6
+#define BOOLOBJ 2
+#define USERTYPE 3
+#define CLSOBJ  4
+#define CLSTYPE 5
 #define FUNOBJ  1<<3
 #define CFUNOBJ 1<<4
 #define METHOD  1<<5
-
+#define USEROBJ 1<<6
+#define LISTOBJ 1<<7
+#define DICTOBJ 1<<8
+#define STROBJ  1<<9
 
 
 class StrObj {
 public:
-	std::string str;
 	bool mark;
+	std::string str;
 	StrObj() :mark(false) {}
 	StrObj(const std::string& s):str(s),mark(false) {}
 };
@@ -42,7 +44,7 @@ struct FunObj {
 
 class ClsType;
 class ClsObj;
-
+struct UserData;
 struct Object;
 typedef Object (*cFunc)(void* state);
 
@@ -58,22 +60,10 @@ struct Method{
 		FunObj* funObj;
 		CFunObj* cFunObj;
 	};
-	ClsObj* self;
-};
-
-struct Object{
-	int type;
-	union{
-		bool boolval;
-		float numval;
-		StrObj* strObj;
-		FunObj* funObj;
-		CFunObj* cFunObj;
-		ClsObj clsObj;
-		ClsType* clsType;
-		Method method;
-		void* userData;
-	} value;
+	union {
+		ClsObj* self;
+		UserData* userData;
+	};
 };
 
 class ClsType {
@@ -83,53 +73,39 @@ public:
 	ClsType() {}
 };
 
-struct ClsObj {
-	ClsType* clsType;
-	union{
-		std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*>* pAttrs;
-		void* data;
-	};
+struct UserData{
+	bool mark;
+	void* data;
+	ClsType* type;
+	UserData(ClsType* t, void* d) :type(t), data(d), mark(false) {}
 };
 
-#include <cassert>
-namespace std{
-	template<>
-	struct hash<Object>{
-		typedef Object argument_type;
-		typedef size_t value_type;
-		value_type operator()(const argument_type& obj){
-			switch (obj.type){
-				case NUMOBJ:return hash<float>()(obj.value.numval); break;
-				case STROBJ:return strHasher(obj.value.strObj); break;
-				case FUNOBJ:return hash<decltype(obj.value.funObj)>()(obj.value.funObj); break;
-				case BOOLOBJ:return hash<bool>()(obj.value.boolval); break;
-				case CLSOBJ:return hash<decltype(obj.value.clsObj)>()(obj.value.clsObj); break;
-				//case CLSTYPE:return hash<decltype(obj.value.)>()(obj.value.funObj);
-				case NILOBJ:
-				default:assert(0); break;
-			}
-		}
-	};
+class ClsObj {
+public:
+	bool mark;
+	ClsType* clsType;
+	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> attrs{0,strHasher,strEq};
+	ClsObj() :mark(false),clsType(NULL) {}
+};
 
-	template<>
-	struct equal_to<Object>{
-		typedef bool result_type;
-		typedef Object first_argument_type;
-        typedef Object second_argument_type;
-		bool operator()(first_argument_type const& a, second_argument_type const& b) const{
-			switch (a.type){
-				case NUMOBJ:return a.value.numval == b.value.numval;
-				case STROBJ:return strEq(a.value.strObj,b.value.strObj); 
-				case FUNOBJ:return a.value.funObj == b.value.funObj; 
-				case BOOLOBJ:return a.value.boolval == b.value.boolval; 
-				case CLSOBJ:return a.value.clsObj == b.value.clsObj;
-				//case CLSTYPE:return hash<decltype(obj.value.)>()(obj.value.funObj);
-				case NILOBJ:
-				default:assert(0); break;
-			}
-		}
-	};
-}
+
+struct Object{
+	int type;
+	union{
+		bool boolval;
+		float numval;
+		StrObj* strObj;
+		FunObj* funObj;
+		CFunObj* cFunObj;
+		ClsObj* clsObj;
+		ClsType* clsType;
+		Method method;
+		UserData* userData;
+	} value;
+};
+
+static Object NilObj = { NILOBJ, {} };
+
 
 struct Symbol{
 	Object obj;

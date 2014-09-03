@@ -30,7 +30,7 @@ std::pair<bool, int> Parser::parseIden(Token* token){
 	return pair;
 }
 
-bool Parser::parseValue(int& type, int& index){
+bool Parser::parseValue(int& type, int& index, int& nArgs){
 	Token* token = tokenizer->getToken();
 	tokenizer->advance();
 	if (token->type == IDEN){
@@ -44,10 +44,12 @@ bool Parser::parseValue(int& type, int& index){
 		type = STRING;
 	}
 	else if (token->type == LBRACKET){
+		nArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACKET){
 			while (1){
 				orExpr();
+				nArgs++;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -58,12 +60,14 @@ bool Parser::parseValue(int& type, int& index){
 		type = LBRACKET;
 	}
 	else if (token->type == LBRACE){
+		nArgs = 0;
 		token = tokenizer->getToken();
 		if (token->type != RBRACE){
 			while (1){
 				orExpr();
 				match(COLON);
 				orExpr();
+				nArgs+=2;
 				token = tokenizer->getToken();
 				if (token->type != COMMA)
 					break;
@@ -76,7 +80,7 @@ bool Parser::parseValue(int& type, int& index){
 	return false;
 }
 
-void Parser::pushValue(int type, int index, bool isGlobal ){
+void Parser::pushValue(int type, int index, bool isGlobal, int nArgs){
 	switch (type){
 		case IDEN:{
 			byteCode->push_back(char(isGlobal? PUSHGLOBAL: PUSHLOCAL));  
@@ -88,46 +92,62 @@ void Parser::pushValue(int type, int index, bool isGlobal ){
 			pushWord(index); 
 			break;
 		}
-		case LBRACKET:{
-			byteCode->push_back((char)CREATELIST);
-			break;
-		}
 		case LBRACE:{
-			byteCode->push_back((char)CREATEDICT);
+			if (nArgs % 2 != 0){
+				tokenizer->error("the number of arguments is wrong", 0, ARGUMENTERROR);
+			}
+		}
+		case LBRACKET:{
+			if (nArgs >= 128){
+				tokenizer->error("the number of arguments exceeds", 0, ARGUMENTERROR);
+			}
+			byteCode->push_back((char)CALLFUNC);
+			byteCode->push_back((char)nArgs);
 			break;
 		}
 		default: assert(0);
 	}
 }
 
-void Parser::lvalue(){
+bool Parser::lvalue(){
 	Token* token = tokenizer->getToken();
 	match(IDEN);
 	auto pair = parseIden(token);
-	pushValue(IDEN, pair.second, pair.first);
+	pushValue(IDEN, pair.second, pair.first, 0);
 	token = tokenizer->getToken();
+	bool isPeriod = false;
 	while(token->type == PERIOD || token->type == LBRACKET){
+		isPeriod = token->type == PERIOD? true: false;
 		parseSeleOp();
 		token = tokenizer->getToken();
+		if (token->type == PERIOD || token->type == LBRACKET){
+			byteCode->push_back(char(isPeriod?GETATTR:GETINDEX));
+		}
 	}
+	return isPeriod;
 }
 
 void Parser::rvalue(){
 	int type, index;
-	bool isGlobal = parseValue(type, index);
-	pushValue(type, index, isGlobal);
+	int nArgs = 0;
+	bool isGlobal = parseValue(type, index, nArgs);
+	pushValue(type, index, isGlobal, nArgs);
 	parseOp();
 }
 
 void Parser::parseOp(){
 	Token* token = tokenizer->getToken();
-	//bool isObjCall = false;
 	bool recursion = false;
 	if (token->type == PERIOD){
 		parseSeleOp();
 		byteCode->push_back((char)GETATTR);
 		token = tokenizer->getToken();
-		//isObjCall = true;
+		recursion = true;
+	}
+	if (token->type == LBRACKET){
+		parseSeleOp();
+		byteCode->push_back((char)GETINDEX);
+		token = tokenizer->getToken();
 		recursion = true;
 	}
 	if (token->type == LPAREN){
@@ -139,9 +159,8 @@ void Parser::parseOp(){
 		parseOp();
 }
 
-int Parser::parseSeleOp(){
+void Parser::parseSeleOp(){
 	Token* token = tokenizer->getToken();
-	int n = 0;
 	if (token->type == PERIOD){
 		tokenizer->advance();
 		token = tokenizer->getToken();
@@ -149,18 +168,13 @@ int Parser::parseSeleOp(){
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHSTRING);
 		pushWord(index);
-		n++;
 	}
 	else if (token->type == LBRACKET){
-		tokenizer->advance(1);
-		token = tokenizer->getToken();
-		/*match(NUM);
-		int index = getSharedString(token->str);
-		byteCode->push_back((char)PUSHSTRING);
-		pushWord(index);*/
-		n++;
+		tokenizer->advance();
+		orExpr();
+		match(RBRACKET);
 	}
-	return n;
+	else assert(0);
 }
 
 
@@ -233,8 +247,16 @@ void Parser::assignStmt(){
 	int n = 0;
 	bool global = false;
 	bool objLvalue = false;
+	bool isPeriod = true;
 	if (isClass && !isClassFunction){
-		addSymbol();
+		match(IDEN);
+		auto iter = classAttrs.find(token->str);
+		if (iter != classAttrs.end())
+			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
+		else{
+			classAttrs.insert(token->str);
+		}
+		token = tokenizer->getToken();
 		int index = getSharedString(token->str);
 		byteCode->push_back((char)PUSHGLOBAL);
 		pushWord(clsIndex);
@@ -243,7 +265,7 @@ void Parser::assignStmt(){
 	}
 	else {
 		if (token2->type == PERIOD || token2->type == LBRACKET){
-			lvalue();
+			isPeriod = lvalue();
 			objLvalue = true;
 		}
 		else{
@@ -259,8 +281,11 @@ void Parser::assignStmt(){
 	
 	match(ASSIGN);
 	orExpr();
-	if (isClass || objLvalue){
-		byteCode->push_back((char)SETATTR);
+	if (isClass){
+		byteCode->push_back(char(SETATTR));
+	}
+	else if (objLvalue){
+		byteCode->push_back(char(isPeriod?SETATTR:SETINDEX));
 	}
 	else {
 		byteCode->push_back(char(global ? STOREGLOBAL : STORELOCAL));
@@ -290,7 +315,8 @@ void Parser::term2(){
 
 void Parser::factor(){
 	Token* token = tokenizer->getToken();
-	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS || token->type == STRING) {
+	if (token->type == LPAREN || token->type == NUM || token->type == IDEN || token->type == MINUS || token->type == STRING ||
+		token->type == LBRACKET || token->type == LBRACE) {
 		basic();
 		factor2();
 	}
@@ -310,6 +336,12 @@ void Parser::factor2(){
 		tokenizer->advance();
 		basic();
 		byteCode->push_back((char)OP_DIV);
+		factor2();
+	}
+	else if (tokenizer->getToken()->type == MOD){
+		tokenizer->advance();
+		basic();
+		byteCode->push_back((char)OP_MOD);
 		factor2();
 	}
 }
@@ -346,7 +378,30 @@ void Parser::basic(){
 		rvalue();
 	}
 	else if (token->type == LBRACKET){
+		auto pair = symTab->findSym("list");
+		if (pair.second == -1){
+			tokenizer->error("class list not found",token->num,SYMBOLERROR);
+		}
+		byteCode->push_back(char(pair.first? PUSHGLOBAL: PUSHLOCAL));  
+		pushWord(pair.second); 
 		rvalue();
+	}
+	else if (token->type == LBRACE){
+		auto pair = symTab->findSym("dict");
+		if (pair.second == -1){
+			tokenizer->error("class dict not found",token->num,SYMBOLERROR);
+		}
+		byteCode->push_back(char(pair.first? PUSHGLOBAL: PUSHLOCAL));  
+		pushWord(pair.second); 
+		rvalue();
+	}
+	else if (token->type == RESERVEDTRUE) {
+		byteCode->push_back(PUSHTRUE);
+		tokenizer->advance();
+	}
+	else if (token->type == RESERVEDFALSE) {
+		byteCode->push_back(PUSHFALSE);
+		tokenizer->advance();
 	}
 	else {
 		tokenizer->error("syntax error",token->num);
@@ -363,10 +418,12 @@ void Parser::program(){
 
 void Parser::elem(){
 	Token* token = tokenizer->getToken();
-	if (token->type == FUNCTION)
+	if (token->type == FUNCTION){
 		function();
-	else if (token->type == CLASS)
+	}
+	else if (token->type == CLASS){
 		classDefinition();
+	}
 	else stmt();
 }
 
@@ -376,7 +433,7 @@ void Parser::stmt(){
 		pushWord(tokenizer->getlinenum());
 		debugLine = tokenizer->getlinenum();
 	}
-	bool matchSemi=true;
+	bool matchSemi = true;
 	Token* token = tokenizer->getToken();
 	if (token->type == IDEN){
 		if (tokenizer->isAssignStmt)
@@ -396,14 +453,14 @@ void Parser::stmt(){
 	}
 	else if (token->type == IF){
 		ifStmt();
-		matchSemi=false;
+		matchSemi = false;
 	}
 	else if (token->type == VAR){
 		declarations();
 	}
 	else if (token->type == WHILE){
 		whileStmt();
-		matchSemi=false;
+		matchSemi = false;
 	}
 	else if (token->type == BREAK){
 		breakStmt();
@@ -414,7 +471,7 @@ void Parser::stmt(){
 	else {
 		tokenizer->error("syntax error",token->num);
 	}
-	if(matchSemi)
+	if (matchSemi)
 		match(SEMICOLON);
 }
 
@@ -447,11 +504,11 @@ void Parser::function(){
 	std::string functionName = token->str;
 	int index = 0;
 	if (isClass){
-		auto iter = classFunctions.find(functionName);
-		if (iter != classFunctions.end())
+		auto iter = classAttrs.find(functionName);
+		if (iter != classAttrs.end())
 			tokenizer->error("symbol redefinition",token->num,SYMBOLERROR);
 		else{
-			classFunctions.insert(functionName);
+			classAttrs.insert(functionName);
 		}
 		if (token->type == INITMETHOD)
 			isClassConstructor = true;
@@ -462,13 +519,7 @@ void Parser::function(){
 	}
 	StrObj* strObj = NULL;
 	if (isClass){
-		int sindex = 0;
-		if(isClassConstructor){
-			sindex = getBuiltInStr(token->str);
-		}
-		else{
-			sindex = getSharedString(token->str);
-		}
+		int sindex = getSharedString(token->str);
 		strObj = stringPoolPtr->getStrObj(sindex);
 	}
 	match(LPAREN);
@@ -699,28 +750,11 @@ void Parser::continueStmt(){
 	pushWord(0);
 }
 
-int Parser::getBuiltInStr(const std::string& str){
-	auto iter = sharedStrings.find(str);
-	int index = 0;
-	if (iter == sharedStrings.end()){
-		index = stringPoolPtr->putBuiltInStr(str);
-		sharedStrings.insert(std::make_pair(str,index));
-	}
-	else
-		index = iter->second;
-	assert(index>=0 && index<=SHRT_MAX);
-	return index;
-}
-
 int Parser::getSharedString(const std::string& str){
-	auto iter = sharedStrings.find(str);
-	int index = 0;
-	if (iter == sharedStrings.end()){
+	int index = stringPoolPtr->getStringConstant(str);
+	if (index == -1){
 		index = stringPoolPtr->putStringConstant(str);
-		sharedStrings.insert(std::make_pair(str,index));
 	}
-	else
-		index = iter->second;
 	assert(index>=0 && index<=SHRT_MAX);
 	return index;
 }
@@ -733,7 +767,7 @@ void Parser::classDefinition(){
 	curClsType = cls;
 	curClsType->clsName = clsName;
 	isClass = true;
-	classFunctions.clear();
+	classAttrs.clear();
 	Object object;
 	object.type = CLSTYPE;
 	object.value.clsType = cls;

@@ -5,34 +5,70 @@
 #include <unordered_map>
 
 #include "Object.h"
-
+#include "List.h"
+#include "Dict.h"
 bool mark(Object* obj);
 
 class ObjectPool{
 private:
-	std::vector<ClsObj*> objs;
+	std::vector<ClsObj*> clsObjVec;
+	std::vector<std::pair<UserData*,bool>> userDataVec;
 public:
 	ObjectPool() {}
 	~ObjectPool(){
-		for (auto &pobj : objs){
+		for (auto &pobj : clsObjVec){
 			delete pobj;
+		}
+		for (auto &userData : userDataVec){
+			if (!userData.second){
+				if (userData.first->type->clsName == "list")
+					delete (List*)userData.first->data;
+				else if (userData.first->type->clsName == "dict")
+					delete (Dict*)userData.first->data;
+				else delete userData.first->data;	
+			} 
+			delete userData.first;
 		}
 	}
 	void collect(){
 		int j = 0;
-		for (size_t i = 0; i < objs.size(); i++){
-			if (1){
-
+		for (size_t i = 0; i < clsObjVec.size(); i++){
+			if (clsObjVec[i]->mark){
+				clsObjVec[i]->mark = false;
+				clsObjVec[j++] = clsObjVec[i];
 			}
 			else{
-				delete objs[i];
+				delete clsObjVec[i];
 			}
 		}
-		objs.resize(j);
+		clsObjVec.resize(j);
+		j = 0;
+		for (size_t i = 0; i < userDataVec.size(); i++){
+			if (userDataVec[i].first->mark){
+				userDataVec[i].first->mark = false;
+				userDataVec[j++] = userDataVec[i];
+			}
+			else{
+				if (!userDataVec[i].second){
+					if (userDataVec[i].first->type->clsName == "list")
+						delete (List*)userDataVec[i].first->data;
+					else if (userDataVec[i].first->type->clsName == "dict")
+						delete (Dict*)userDataVec[i].first->data;
+					else delete userDataVec[i].first->data;	
+				}
+				delete userDataVec[i].first;
+			}
+		}
+		userDataVec.resize(j);
 	}
-	int putObj(ClsObj* pobj){
-		objs.push_back(pobj);
-		return (int)objs.size()-1;
+	void putClsObj(ClsObj* clsObj){
+		clsObjVec.push_back(clsObj);
+	}
+	void putUserData(UserData* userData,bool isStr){
+		userDataVec.push_back(std::make_pair(userData, isStr));
+	}
+	size_t getObjNum(){
+		return clsObjVec.size() + userDataVec.size();
 	}
 };
 

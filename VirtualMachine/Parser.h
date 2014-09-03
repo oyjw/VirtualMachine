@@ -87,17 +87,16 @@ public:
 	void program();
 
 	void funcArgs(Token* function);
-	int parseSeleOp();
+	void parseSeleOp();
 	void classDefinition();
-	bool parseValue(int& type, int& index);
-	void pushValue(int type, int index, bool isGlobal);
+	bool parseValue(int& type, int& index, int& nArgs);
+	void pushValue(int type, int index, bool isGlobal, int nArgs);
 	void parseOp();
-	void lvalue();
+	bool lvalue();
 	void rvalue();
 	std::pair<bool, int> parseIden(Token* token);
 private:
 	int addSymbol();
-	int getBuiltInStr(const std::string& str);
 	int getSharedString(const std::string& str);
 	void match(int type);
 	void pushWord(int n);
@@ -110,7 +109,7 @@ private:
 	SymPtr symTab;
 	//std::vector<ClsType> *clsData;
 	ClsType* curClsType;
-	std::unordered_set<std::string> classFunctions;
+	std::unordered_set<std::string> classAttrs;
 	bool isClass;
 	bool isClassFunction;
 	bool isClassConstructor;
@@ -118,7 +117,6 @@ private:
 	int debugLine;
 
 	std::shared_ptr<ObjectPool> objectPoolPtr;
-	std::unordered_map<std::string,int> sharedStrings;
 	LoopLabelPtr loopLabelPtr;
 };
 

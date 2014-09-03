@@ -35,6 +35,8 @@ Tokenizer::Tokenizer(const std::string& fileName) :ifs(fileName), vecPos(0), lin
 	reservedWord["not"] = NOT;
 	reservedWord["and"] = AND;
 	reservedWord["or"] = OR;
+	reservedWord["True"] = RESERVEDTRUE;
+	reservedWord["False"] = RESERVEDFALSE;
 
 	reservedWord["class"] = CLASS;
 	reservedWord["__init__"] = INITMETHOD;
@@ -93,7 +95,7 @@ void Tokenizer::scan(){
 				token.str += c;
 			}
 			else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c=='(' || c== ')' || c=='{' || c=='}' ||
-				c == ',' || c == '.'){
+				c == ',' || c == '.' || c == '[' || c == ']' || c == ':'){
 				state = 4;
 				readchar = false;
 			}
@@ -188,10 +190,13 @@ void Tokenizer::scan(){
 			case '%':token.type = MOD;break;
 			case '(':token.type = LPAREN; break;
 			case ')':token.type = RPAREN; break;
+			case '[':token.type = LBRACKET; break;
+			case ']':token.type = RBRACKET; break;
 			case '{':token.type = LBRACE; break;
 			case '}':token.type = RBRACE; break;
 			case ',':token.type = COMMA; break;
 			case '.':token.type = PERIOD; break;
+			case ':':token.type = COLON; break;
 			default:assert(0); break;
 			}
 			pushtoken = true;
@@ -210,8 +215,8 @@ void Tokenizer::scan(){
 		}
 		case 6:{
 			Token& lastToken = tokenVec[tokenVec.size() - 1];
-			if (lastToken.type != SEMICOLON &&lastToken.type != LBRACE 
-				&&lastToken.type != RBRACE){
+			if ((lastToken.type != SEMICOLON && lastToken.type != LBRACE
+				&& lastToken.type != RBRACE) || (lastToken.type == RBRACE && isAssignStmt)){
 				token.type = SEMICOLON;
 				pushtoken = true;
 			}
@@ -240,7 +245,10 @@ void Tokenizer::scan(){
 			break;
 		}
 		case 9:{
-			if (c != '"'){
+			if (c == '\n'){
+				error("expecting right quote",0,TOKENERROR);
+			}
+			else if (c != '"'){
 				token.str += c;
 			}
 			else {
@@ -316,9 +324,11 @@ void Tokenizer::error(const std::string& message, int col, int errorType){
 	if (errorType == SYNTAXERROR)
  		throw SyntaxError(oss.str());
 	else if (errorType == SYMBOLERROR)
-		throw SymbolError(oss.str());
+ 		throw SymbolError(oss.str());
 	else if (errorType == TOKENERROR)
 		throw TokenError(oss.str());
+	else if (errorType == ARGUMENTERROR)
+		throw ArgumentError(oss.str());
 	else assert(0);
 }
 

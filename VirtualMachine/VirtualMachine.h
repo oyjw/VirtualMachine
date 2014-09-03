@@ -38,7 +38,20 @@ public:
 		stack.push_back(obj);
 		top++;
 	}
-	void getArgs(int* len, Object** objs){
+	void getArgs(int* len, Object* objs){
+		int tmp = top - framePointer;
+		if (tmp > *len){
+			*len = tmp;
+			return;
+		}
+		else {
+			*len = tmp;
+		}
+		for (int i = 0; i < tmp; ++i){
+			objs[i] = stack[framePointer + i];
+		}
+	}
+	void getArgs2(int* len, Object** objs){
 		int tmp = top - framePointer;
 		*len = tmp;
 		*objs = new Object[*len];
@@ -46,6 +59,8 @@ public:
 			(*objs)[i] = stack[framePointer + i];
 		}
 	}
+	StrObj* addStrObj(const std::string& str);
+	StrObj* getStrObj(const std::string& str);
 	std::string getStackTrace();
 	void checkArgs(int, int);
 	void checkCallable(Object&);
@@ -57,8 +72,25 @@ public:
 	std::shared_ptr<ObjectPool> objectPoolPtr;
 	ClsType* listCls;
 	ClsType* dictCls;
+	ClsType* strCls;
+	Object callCFunc(ClsType* type, std::string funcName, int newBase);
+	size_t getFP(){
+		return framePointer;
+	}
+	void setFP(size_t fp){
+		framePointer = fp;
+	}
+	int getTop(){
+		return top;
+	}
+	void setTop(int t){
+		top = t;
+		stack.resize(top);
+	}
 private:
+	void checkIndexType(Object& obj, Object& obj2);
 	bool boolValue(Object& obj);
+	void mark();
 	void collect();
 	void compute(int opcode);
 	void compare(int opcode);

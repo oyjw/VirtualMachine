@@ -37,4 +37,10 @@ class ArgumentError :public std::exception
 public:
 	ArgumentError(const std::string& msg) :exception(msg.c_str()) {}
 };
+
+class MemoryError :public std::exception
+{
+public:
+	MemoryError(const std::string& msg) :exception(msg.c_str()) {}
+};
 #endif
