@@ -47,8 +47,8 @@ Object listNew(void* state){
 }
 
 Object listGet(void* state){
-	int len = 10;
-	Object objArr[10];
+	int len = 2;
+	Object objArr[2];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
 	List* l =(List*)objs[0].value.userData->data;
@@ -57,8 +57,8 @@ Object listGet(void* state){
 }
 
 Object listSet(void* state){
-	int len = 10;
-	Object objArr[10];
+	int len = 3;
+	Object objArr[3];
 	getArgs(state, &len, objArr);
 	Object* objs = objArr;
 	List* l =(List*)objs[0].value.userData->data;

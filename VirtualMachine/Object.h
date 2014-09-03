@@ -44,7 +44,7 @@ struct FunObj {
 
 class ClsType;
 class ClsObj;
-
+struct UserData;
 struct Object;
 typedef Object (*cFunc)(void* state);
 
@@ -60,7 +60,10 @@ struct Method{
 		FunObj* funObj;
 		CFunObj* cFunObj;
 	};
-	ClsObj* self;
+	union {
+		ClsObj* self;
+		UserData* userData;
+	};
 };
 
 class ClsType {
@@ -68,6 +71,13 @@ public:
 	std::string clsName;
 	std::unordered_map<StrObj*,Object,decltype(strHasher)*,decltype(strEq)*> clsAttrs{0,strHasher,strEq};
 	ClsType() {}
+};
+
+struct UserData{
+	bool mark;
+	void* data;
+	ClsType* type;
+	UserData(ClsType* t, void* d) :type(t), data(d), mark(false) {}
 };
 
 class ClsObj {
@@ -78,12 +88,6 @@ public:
 	ClsObj() :mark(false),clsType(NULL) {}
 };
 
-struct UserData{
-	bool mark;
-	void* data;
-	ClsType* type;
-	UserData(ClsType* t, void* d) :type(t), data(d), mark(false) {}
-};
 
 struct Object{
 	int type;

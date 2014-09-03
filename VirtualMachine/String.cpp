@@ -166,36 +166,39 @@ Object strNew(void* state){
 
 Object strGet(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs = NULL;
-	getArgs2(state, &len, &objs);
+	int len = 2;
+	Object objs[2];
+	getArgs(state, &len, objs);
 	StrObj* strObj = (StrObj*)(objs[0].value.userData->data);
 	size_t index = checkIndex(state, strObj,objs[1]);
 	Object obj;
-	obj.value.userData = new UserData(vm->strCls, vm->addStrObj(&(strObj->str[(size_t)index])));
-
-	delete[] objs;
+	obj.type = STROBJ | USEROBJ;
+	char buf[2];
+	buf[1] = '\0';
+	buf[0] = strObj->str[(size_t)index];
+	obj.value.userData = new UserData(vm->strCls, vm->addStrObj(buf));
+	setGC2(state, obj.value.userData);
 	return obj;
 }
 
 Object strSet(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
-	Object* objs = NULL;
-	getArgs2(state, &len, &objs);
+	int len = 3;
+	Object objs[3];
+	getArgs(state, &len, objs);
 	StrObj* strObj = (StrObj*)(objs[0].value.userData->data);
 	StrObj* value = (StrObj*)(objs[2].value.userData->data);
-	if (value->str.size() != (size_t)1)
+	if (value->str.size() != (size_t)1){
 		vm->throwError("the size of string to replace is not 1",ARGUMENTERROR);
-	size_t index = checkIndex(state, strObj,objs[1]);
+	}
+	size_t index = checkIndex(state, strObj,objs[1]); 
 	strObj->str[index] = value->str[0];
-	delete[] objs;
 	return NilObj;
 }
 
 Object strLen(void* state){
 	VirtualMachine *vm = (VirtualMachine*)state;
-	int len;
+	int len = 1;
 	Object obj;
 	getArgs(state, &len, &obj);
 	StrObj* strObj = (StrObj*)(obj.value.userData->data);

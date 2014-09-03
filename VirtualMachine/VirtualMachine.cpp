@@ -304,10 +304,16 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				Object func = obj;
 				if (obj.type & METHOD){
 					base = newBase - 1;
-					callInfoPtr->funcName = obj.type & FUNOBJ ? obj.value.method.funObj->functionName:
-						obj.value.method.cFunObj->functionName;
-					obj.type = CLSOBJ;
-					obj.value.clsObj = obj.value.method.self;
+					if (obj.type & FUNOBJ){
+						callInfoPtr->funcName = obj.value.method.funObj->functionName;
+						obj.type = CLSOBJ;
+						obj.value.clsObj = obj.value.method.self;
+					}
+					else{
+						callInfoPtr->funcName = obj.value.method.cFunObj->functionName;
+						obj.type = USEROBJ;
+						obj.value.userData = obj.value.method.userData;
+					}
 				}
 				else{
 					base = newBase;
@@ -402,14 +408,15 @@ int VirtualMachine::execute(std::vector<char>& byteCodes,size_t base,size_t byte
 				}
 				if (createMethod){
 					Object method;
-					method.value.method.self = obj.value.clsObj;
 					if (iter->second.type == FUNOBJ){
 						method.value.method.funObj = iter->second.value.funObj;
 						method.type = METHOD | FUNOBJ;
+						method.value.method.self = obj.value.clsObj;
 					}
 					else {
 						method.value.method.cFunObj = iter->second.value.cFunObj;
 						method.type = METHOD | CFUNOBJ;
+						method.value.method.userData = obj.value.userData;
 					}
 					obj = method;
 				}

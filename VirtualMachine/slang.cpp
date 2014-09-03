@@ -124,14 +124,14 @@ void parseFile(void* state, const char* fileName, const char* destFile){
 	Tokenizer* tokenizer = new Tokenizer(fileName);
 	std::shared_ptr<Parser> parser = std::make_shared<Parser>(tokenizer, vm->symTab,vm->stringPoolPtr,
 	vm->byteCodePtr,vm->objectPoolPtr);
-	/*try{*/
+	try{
 		parser->program();
 		if (strlen(destFile) !=0)
-		vm->run(destFile);
+			vm->run(destFile);
 		else 
 			vm->run();
-	/*}
+	}
 	catch(std::exception& e){
-		std::cerr << e.what();
-	}*/
+   		std::cout << e.what();
+	}
 }

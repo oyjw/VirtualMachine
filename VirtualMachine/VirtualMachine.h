@@ -44,6 +44,9 @@ public:
 			*len = tmp;
 			return;
 		}
+		else {
+			*len = tmp;
+		}
 		for (int i = 0; i < tmp; ++i){
 			objs[i] = stack[framePointer + i];
 		}

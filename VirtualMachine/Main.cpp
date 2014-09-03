@@ -1,10 +1,13 @@
+#ifdef WIN32
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
+#endif
 #include "slang.h"
 #include <cstring>
-
+#include <iostream>
 void usage(){
-
+	std::cout << "use vm -p distFile srcFile to see the bytecodes or" << std::endl;
+	std::cout << "    vm srcFile to run the interpreter" << std::endl;
 }
 
 void getPrintFile(int i, int argc, const char* args[], std::string& printFile){
@@ -43,6 +46,8 @@ int main(int argc, const char* argv[]){
 	parseFile(state,srcFile.c_str(),printFile.c_str());
 	freeState(state);
 	}
+	#ifdef WIN32
 	_CrtDumpMemoryLeaks();
+	#endif
 	return 0;
 }
